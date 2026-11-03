@@ -1,5 +1,15 @@
 # Histórico de alterações
 
+## Prévia visual 0.2.0 — 03/11/2026
+
+- Redesenha o cliente a partir das duas capturas Avante fornecidas: catálogo escuro, cabeçalho horizontal, menu recolhido, banner central, continuar assistindo e capas verticais.
+- Reorganiza a sala de aula com player amplo, painel de módulos à direita, pesquisa interna, progresso segmentado e navegação anterior/próxima.
+- Demonstra abas de descrição, materiais e anotações, avaliação e aulas salvas, com persistência exclusiva no navegador.
+- Inclui busca por curso/aula sem exigir acentos, filtros combinados e seis cursos ilustrativos para revisão do catálogo.
+- Permite selecionar capas vertical e horizontal no editor administrativo da demonstração.
+- Adapta catálogo, sala de aula e navegação para celular/tablet; preserva o painel administrativo existente.
+- Atualiza o pacote público para 0.2.0; backend e publicação remota continuam na etapa seguinte.
+
 ## Prévia visual 0.1.0 — 03/11/2026
 
 - Adiciona interface responsiva do cliente e do admin com identidade da Morais, Manrope local, logo e imagem institucional.

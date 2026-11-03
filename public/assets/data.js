@@ -19,6 +19,9 @@ export const defaults = {
     heroBody:
       "Conheça nossos processos, organize sua rotina e descubra como vamos caminhar juntos.",
     coursesTitle: "Suas trilhas de conhecimento",
+    catalogTitle: "Essenciais para sua jornada",
+    continueTitle: "Continuar assistindo",
+    catalogSearch: "Procurar por nome de curso ou aula",
     supportTitle: "Conte com a nossa equipe",
     supportBody: "Uma dúvida no caminho? Estamos por perto para ajudar.",
     loginTitle: "Que bom ter você por aqui.",
@@ -140,6 +143,50 @@ export const seedCourses = [
     ],
   },
 ];
+// Cursos ilustrativos extras para revisar a apresentação de um catálogo completo.
+seedCourses.push(
+  ...[
+    [
+      "documentos",
+      "Documentos e prazos, sem complicação",
+      "Organização da rotina",
+      "file",
+      ["Preparando seus documentos", "Uma rotina mensal organizada"],
+    ],
+    [
+      "atendimento",
+      "Uma equipe perto de você",
+      "Relacionamento e suporte",
+      "message",
+      ["Como falar com a sua equipe", "Acompanhando suas solicitações"],
+    ],
+    [
+      "planejamento",
+      "Mais clareza para decidir",
+      "Gestão e planejamento",
+      "chart",
+      ["Seu primeiro acompanhamento", "Conheça seus próximos passos"],
+    ],
+  ].map(([id, title, category, icon, titles]) => ({
+    id,
+    title,
+    category,
+    icon,
+    description:
+      "Orientações para facilitar a jornada da sua empresa com o escritório.",
+    tone: "navy",
+    status: "published",
+    sequence: false,
+    modules: [
+      {
+        id: id + "-modulo",
+        title: category,
+        lessons: titles.map((title, i) => lesson(id + "-" + i, title, "05:00")),
+      },
+    ],
+  })),
+);
+
 export const seedClients = [
   {
     id: "cliente-1",

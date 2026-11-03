@@ -21,6 +21,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-sr
     <link rel="icon" href="assets/brand/favicon.jpg">
     <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="assets/app.css">
+    <link rel="stylesheet" href="assets/academy.css">
     <script type="module" src="assets/app.js"></script>
 </head>
 <body>

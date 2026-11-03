@@ -4,7 +4,7 @@ Portal independente do WordPress, com uma instalação por escritório, desenvol
 
 ## Estado do projeto
 
-Arquitetura v1.0 consolidada e primeira prévia visual 0.1.0 implementada em 03/11/2026, após a instrução de prosseguir com a criação. O frontend usa a identidade da Morais e dados fictícios. A revisão e aprovação visual antecedem a integração do backend.
+Arquitetura v1.0 consolidada e prévia visual 0.2.0 implementada em 03/11/2026. O portal segue a estrutura de catálogo e sala de aula das capturas Avante fornecidas pelo responsável, com identidade da Morais e dados fictícios. A revisão e aprovação visual antecedem a integração do backend.
 
 O ambiente atual usa **aaPanel**, PHP **8.4**, diretório **`/www/wwwroot/onboarding.kaizenmidias.com`** e domínio **https://onboarding.kaizenmidias.com/**, com SSL informado como configurado. A prioridade atual é esse ambiente; a portabilidade para hospedagem compartilhada permanece no planejamento de replicação.
 

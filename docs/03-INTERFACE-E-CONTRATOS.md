@@ -1,6 +1,6 @@
 # Interface, editabilidade e contratos de integração
 
-Especificação para a etapa visual, a iniciar após aprovação da arquitetura e recebimento da referência. Este documento não define cores, tipografia ou layout final antes da referência.
+Especificação para a etapa visual. As referências de catálogo e aula foram fornecidas em 03/11/2026 e adaptadas na prévia 0.2.0, descrita no [guia visual](07-PREVIA-VISUAL.md). A revisão do responsável continua pendente. Os contratos abaixo orientam a implementação funcional posterior.
 
 ## 1. Fluxo de aprovação visual
 

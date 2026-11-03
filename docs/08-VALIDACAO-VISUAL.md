@@ -1,8 +1,23 @@
-# Validação da prévia visual 0.1.0
+# Validação da prévia visual
 
 Verificações executadas no computador de desenvolvimento em 03/11/2026. A validação cobre a prévia; não representa homologação de backend, segurança de produção ou capacidade da hospedagem.
 
-## Resultados
+## Revisão 0.2.0 — catálogo e sala de aula
+
+- PHP e os três módulos JavaScript verificados quanto à sintaxe.
+- Catálogo, sala de aula, curso adicional, materiais, dashboard administrativo e clientes inspecionados em 360, 768 e 1440 px: conteúdo principal presente, sem excesso de largura na página e sem imagens quebradas nos estados verificados.
+- Catálogo e aula também inspecionados visualmente em 390 px; textos e controles de celular foram ampliados após a primeira revisão.
+- Busca sem acentos por “organizacao” retornou cursos e a aula “Organização de entradas e saídas”. A combinação com o filtro de concluídos preservou a busca e mostrou o estado vazio esperado.
+- Busca interna por “prazos” filtrou o painel para a aula correspondente. Painel de módulos aberto/fechado e menu recolhido com Escape verificados.
+- Conclusão/desfazer, avaliação, anotações e aulas salvas verificados. Conclusão, avaliação e anotação persistiram após recarregar; a aula salva apareceu na lista própria.
+- Abas de descrição/materiais/anotações verificadas, incluindo navegação por seta no teclado.
+- Capas vertical e horizontal selecionadas no editor administrativo, salvas e verificadas nas respectivas áreas do cliente. Arquivos de teste removidos pela interface; exemplos originais mantidos.
+- Nenhum erro de console registrado durante essas verificações.
+- Capturas da revisão ficam em `artifacts/`, fora do Git e do pacote público.
+
+Esta revisão não repete integralmente os 22 fluxos da versão anterior. Os limites funcionais e de dispositivos abaixo continuam válidos.
+
+## Histórico da revisão 0.1.0
 
 - PHP 8.4: verificação de sintaxe do arquivo de entrada aprovada.
 - JavaScript: verificação de sintaxe dos módulos `app.js` e `data.js` aprovada.

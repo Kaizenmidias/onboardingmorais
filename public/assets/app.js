@@ -6,16 +6,21 @@ import {
   faqs,
   icons,
 } from "./data.js";
+import { createAcademy } from "./academy.js";
 
 const KEY = "morais-visual-v1";
 const fresh = () => ({
   version: 1,
+  catalogRevision: 2,
   settings: structuredClone(defaults),
   courses: structuredClone(seedCourses),
   clients: structuredClone(seedClients),
   completed: ["l1", "l2", "l3", "l4", "t1", "t2", "t3", "t4"],
   lastLesson: "l5",
   positions: {},
+  notes: {},
+  saved: [],
+  ratings: {},
   files: [],
   notices: [
     {
@@ -37,11 +42,23 @@ try {
 } catch {
   state = fresh();
 }
+// Atualiza somente os exemplos adicionais; preserva edições e progresso existentes.
+if (!state.catalogRevision) {
+  for (const c of seedCourses.slice(3))
+    if (!state.courses.some((v) => v.id === c.id))
+      state.courses.push(structuredClone(c));
+  state.catalogRevision = 2;
+}
+state.notes ??= {};
+state.saved ??= [];
+state.ratings ??= {};
 let courseFilter = "all",
   search = "",
   clientFilter = "all",
   settingsTab = "brand",
   menuOpen = false,
+  outlineOpen = true,
+  lessonTab = "description",
   modalHandler = null,
   mediaUrls = new Map();
 const $ = (s, root = document) => root.querySelector(s);
@@ -161,9 +178,36 @@ function logo() {
 }
 const contact = (cls = "btn btn-support") =>
   `<a class="${cls}" href="https://wa.me/${esc(brand().whatsapp.replace(/\D/g, ""))}" target="_blank" rel="noopener">${icon("message")} Falar com a equipe ${icon("arrow")}</a>`;
+const academy = () =>
+  createAcademy({
+    state,
+    esc,
+    icon,
+    logo,
+    text,
+    bar,
+    progress,
+    allLessons,
+    activeCourses,
+    nextLesson,
+    lessonInfo,
+    lessonUnlocked,
+    route,
+    avatar,
+    contact,
+    materials,
+    menuOpen,
+    outlineOpen,
+    lessonTab,
+    mediaUrls,
+    persist,
+    courseFilter,
+    search,
+  });
 function shell(content, section = "Visão geral") {
   const admin = isAdmin(),
     [root, sub] = route();
+  if (!admin) return academy().shell(content, section);
   const hiddenMobileMenu = matchMedia("(max-width:760px)").matches && !menuOpen;
   const nav = admin
     ? [
@@ -206,81 +250,13 @@ function courseCard(c) {
   return `<article class="course-card">${link("/curso/" + c.id, courseCover(c), "cover-link")}<div class="course-card-body"><div class="course-meta">${badge(p === 100 ? "Concluída" : p ? "Em andamento" : "Não iniciada", p === 100 ? "success" : p ? "orange" : "neutral")}<span>${c.modules.length} ${c.modules.length === 1 ? "módulo" : "módulos"}</span></div><h3><a href="#/curso/${esc(c.id)}">${esc(c.title)}</a></h3><p>${esc(c.description)}</p><div class="course-progress"><span>${state.completed.filter((id) => allLessons(c).some((l) => l.id === id)).length} de ${count} aulas concluídas</span><strong>${p}%</strong></div>${bar(p, c.title)}<a class="course-cta" href="#/curso/${esc(c.id)}">${p === 100 ? "Revisar trilha" : p ? "Continuar trilha" : "Começar trilha"} ${icon("arrow")}</a></div></article>`;
 }
 function dashboard() {
-  const c = activeCourses()[0],
-    last = lessonInfo(state.lastLesson),
-    resumed =
-      last?.c.status === "published"
-        ? last
-        : c
-          ? lessonInfo(nextLesson(c)?.id)
-          : null;
-  const blocks = {
-    hero: `<section class="welcome-hero"><div class="hero-copy"><span class="eyebrow">${esc(text("heroEyebrow"))}</span><h2>${esc(text("heroTitle")).replace(/\n/g, "<br>")}</h2><p>${esc(text("heroBody"))}</p>${link(c ? "/curso/" + c.id : "/cursos", `Explorar minha jornada ${icon("arrow")}`, "btn btn-primary")}</div><div class="hero-photo" role="img" aria-label="Imagem institucional da Morais Contabilidade"></div><span class="hero-signature">Conhecimento que aproxima.</span></section>`,
-    continue: resumed
-      ? `<section class="continue-row"><div class="section-title"><div><span class="eyebrow">UM PASSO DE CADA VEZ</span><h2>Continue de onde parou</h2></div>${link("/progresso", `Meu progresso ${icon("arrow")}`, "text-link")}</div><a class="continue-card" href="#/aula/${resumed.l.id}"><div class="continue-thumb">${icon("play")}</div><div class="continue-copy"><span>${esc(resumed.c.title)} <i>•</i> Módulo ${resumed.c.modules.indexOf(resumed.m) + 1}</span><h3>${esc(resumed.l.title)}</h3><small>${icon("clock")} ${resumed.l.duration} min <span>Retome no seu ritmo</span></small></div><span class="btn btn-dark">Continuar aula ${icon("arrow")}</span></a></section>`
-      : "",
-    courses: `<section><div class="section-title"><div><span class="eyebrow">APRENDA, ORGANIZE, EVOLUA</span><h2>${esc(text("coursesTitle"))}</h2></div>${link("/cursos", `Ver todas ${icon("arrow")}`, "text-link")}</div><div class="course-grid">${activeCourses().map(courseCard).join("") || empty("Sua jornada começa em breve", "As trilhas liberadas pelo escritório aparecerão aqui.")}</div></section>`,
-    notice: `<section class="bottom-grid"><div class="notice-card"><div class="notice-icon">${icon("bell")}</div><div><span class="eyebrow">RECADO DA EQUIPE</span><h3>${esc(state.notices[0]?.title || "Estamos por aqui")}</h3><p>${esc(state.notices[0]?.body || "Conte com a nossa equipe em cada etapa.")}</p></div></div><div class="contact-card"><div>${icon("message")}<h3>${esc(text("supportTitle"))}</h3><p>${esc(text("supportBody"))}</p></div>${contact("text-link")}</div></section>`,
-  };
-  return (
-    heading(
-      "OLÁ, MARIANA",
-      text("welcome"),
-      text("welcomeBody"),
-      `<div class="journey-summary"><div class="progress-ring" style="--percent:${pct()}"><span>${pct()}<small>%</small></span></div><div><strong>Sua jornada está avançando</strong><span>${completedCount()} aulas concluídas. Continue assim!</span></div></div>`,
-    ) +
-    state.settings.blocks
-      .filter((b) => b.enabled)
-      .map((b) => blocks[b.id] || "")
-      .join("")
-  );
+  return academy().home();
 }
 function coursesPage() {
-  return (
-    heading(
-      "SUA JORNADA",
-      "Conhecimento para seguir em frente.",
-      "Explore as trilhas preparadas para a sua empresa.",
-    ) +
-    `<div class="filter-bar"><div class="tabs" role="group" aria-label="Filtrar trilhas">${[
-      ["all", "Todas"],
-      ["started", "Em andamento"],
-      ["new", "Não iniciadas"],
-      ["done", "Concluídas"],
-    ]
-      .map(
-        ([id, t]) =>
-          `<button data-action="filter-course" data-id="${id}" class="${courseFilter === id ? "selected" : ""}" aria-pressed="${courseFilter === id}">${t}</button>`,
-      )
-      .join(
-        "",
-      )}</div><label class="search-field">${icon("search")}<input id="course-search" placeholder="Buscar uma trilha" aria-label="Buscar uma trilha" value="${esc(search)}"></label></div><div id="course-results" class="course-grid">${filteredCourseCards()}</div>`
-  );
+  return academy().courses();
 }
 function filteredCourseCards() {
-  return (
-    activeCourses()
-      .filter((c) =>
-        c.title
-          .toLocaleLowerCase("pt-BR")
-          .includes(search.toLocaleLowerCase("pt-BR")),
-      )
-      .filter(
-        (c) =>
-          courseFilter === "all" ||
-          (courseFilter === "started" &&
-            progress(c) > 0 &&
-            progress(c) < 100) ||
-          (courseFilter === "new" && !progress(c)) ||
-          (courseFilter === "done" && progress(c) === 100),
-      )
-      .map(courseCard)
-      .join("") ||
-    empty(
-      "Nenhuma trilha encontrada",
-      "Experimente outro termo ou selecione outro filtro.",
-    )
-  );
+  return academy().results(search);
 }
 function lessonUnlocked(c, l) {
   if (!c.sequence) return true;
@@ -309,38 +285,10 @@ function outline(c, current = "", editor = false) {
     .join("");
 }
 function courseDetail(id) {
-  const c = activeCourses().find((c) => c.id === id);
-  if (!c) return notFound();
-  const p = progress(c),
-    next = nextLesson(c);
-  return `<a class="back-link" href="#/cursos">${icon("left")} Voltar para minhas trilhas</a><div class="course-intro"><div><span class="eyebrow">${esc(c.category)}</span><h1 tabindex="-1">${esc(c.title)}</h1><p>${esc(c.description)}</p><div class="inline-meta"><span>${icon("layers")} ${c.modules.length} módulos</span><span>${icon("play")} ${allLessons(c).length} aulas</span><span>${icon("shield")} Conteúdo exclusivo</span></div></div><div class="course-intro-cover">${courseCover(c)}</div></div><div class="content-columns"><section class="module-list"><div class="section-title"><h2>Sua trilha, passo a passo</h2>${badge(c.sequence ? "Sequência obrigatória" : "Acesso livre")}</div>${outline(c)}</section><aside class="panel course-summary"><span class="eyebrow">CADA PASSO CONTA</span><div class="big-progress">${p}<span>%</span></div><h3>${p === 100 ? "Uma conquista para sua empresa." : "Você está construindo sua jornada."}</h3><p>${allLessons(c).filter((l) => state.completed.includes(l.id)).length} de ${allLessons(c).length} aulas concluídas</p>${bar(p)}${next ? link("/aula/" + next.id, `${p === 100 ? "Revisar conteúdo" : "Continuar aprendendo"} ${icon("arrow")}`, "btn btn-primary full") : ""}<div class="summary-help">${icon("help")}<p>Ficou com alguma dúvida?<br><a href="#/ajuda">Nossa equipe pode ajudar.</a></p></div></aside></div>`;
+  return academy().course(id);
 }
 function lessonPage(id) {
-  const info = lessonInfo(id);
-  if (!info || info.c.status !== "published") return notFound();
-  const { c, m, l } = info;
-  if (!lessonUnlocked(c, l))
-    return (
-      heading(
-        "SUA JORNADA",
-        "Uma etapa de cada vez.",
-        "Conclua as aulas anteriores para acessar este conteúdo.",
-      ) + link("/curso/" + c.id, "Ver aulas anteriores", "btn btn-primary")
-    );
-  state.lastLesson = id;
-  persist();
-  const ls = allLessons(c),
-    idx = ls.findIndex((v) => v.id === id),
-    done = state.completed.includes(id),
-    video = mediaUrls.get(id),
-    pos = state.positions[id] || 0;
-  return `<a class="back-link" href="#/curso/${c.id}">${icon("left")} ${esc(c.title)}</a><div class="lesson-layout"><section class="lesson-main"><div class="video-shell">${video ? `<video id="lesson-video" controls playsinline preload="metadata" src="${esc(video)}" aria-label="Vídeo selecionado para prévia"></video>` : `<div class="video-poster"><div class="poster-copy"><span class="eyebrow">MORAIS • CONHECIMENTO</span><h2>${esc(l.title)}</h2><span>${esc(m.title)}</span></div><button class="big-play" data-action="preview-video" data-id="${l.id}" aria-label="Escolher vídeo para prévia">${icon("play")}</button><span class="poster-tag">Prévia do player • vídeo ainda não cadastrado</span></div>`}</div><div class="lesson-title-row"><div><span class="eyebrow">MÓDULO ${c.modules.indexOf(m) + 1} • AULA ${idx + 1}</span><h1 tabindex="-1">${esc(l.title)}</h1></div><span class="muted">${icon("clock")} ${l.duration} min</span></div><div class="lesson-actions"><button class="btn ${done ? "btn-success" : "btn-primary"}" data-action="complete" data-id="${id}">${icon("check")} ${done ? "Aula concluída" : "Marcar como concluída"}</button>${done ? '<span class="muted">Clique novamente para desfazer.</span>' : '<span class="muted">Seu progresso é salvo automaticamente nesta prévia.</span>'}</div><div class="panel lesson-description"><h2>Sobre esta aula</h2><p>Nesta etapa, vamos conhecer ${esc(l.title.toLocaleLowerCase("pt-BR"))}. O objetivo é ajudar você a encontrar as informações certas e seguir com mais segurança na sua parceria com o escritório.</p><div class="editorial-note">Conteúdo ilustrativo para revisão visual. Os textos e vídeos oficiais serão cadastrados pelo escritório.</div><h3>Materiais para acompanhar</h3>${
-    materials
-      .filter((v) => v.course === c.id)
-      .slice(0, 2)
-      .map((v) => materialRow(v))
-      .join("") || '<p class="muted">Nenhum material para esta aula.</p>'
-  }</div><div class="lesson-pagination">${idx ? link("/aula/" + ls[idx - 1].id, `${icon("left")} Aula anterior`, "btn btn-secondary") : "<span></span>"}${idx < ls.length - 1 ? link("/aula/" + ls[idx + 1].id, `Próxima aula ${icon("arrow")}`, "btn btn-dark") : link("/curso/" + c.id, `Voltar à trilha ${icon("arrow")}`, "btn btn-dark")}</div></section><aside class="lesson-outline panel"><div class="outline-title"><h2>Conteúdo da trilha</h2><span>${progress(c)}% concluído</span>${bar(progress(c))}</div>${outline(c, id)}</aside></div>`;
+  return academy().lesson(id);
 }
 function materialRow(m) {
   return `<div class="material-row"><span class="file-icon">${icon(m.ext === "csv" ? "chart" : "file")}</span><div><strong>${esc(m.title)}</strong><small>${esc(m.type)} • ${m.ext.toUpperCase()} • Exemplo ilustrativo</small></div><button class="icon-btn" data-action="download" data-id="${m.id}" aria-label="Baixar ${esc(m.title)}">${icon("download")}</button></div>`;
@@ -556,7 +504,7 @@ function textsForm() {
   )
     .map(
       ([key, value]) =>
-        `<label>${esc({ welcome: "Título da página inicial", welcomeBody: "Descrição da página inicial", heroEyebrow: "Identificação do banner", heroTitle: "Título do banner", heroBody: "Texto do banner", coursesTitle: "Título das trilhas", supportTitle: "Título do suporte", supportBody: "Texto do suporte", loginTitle: "Título do acesso", loginBody: "Descrição do acesso", navHome: "Menu: início", navCourses: "Menu: trilhas", navMaterials: "Menu: materiais", navProgress: "Menu: progresso", navHelp: "Menu: ajuda" }[key])}${key.includes("Body") || key === "heroTitle" ? `<textarea name="${key}" rows="2" maxlength="500" required>${esc(text(key))}</textarea>` : `<input name="${key}" value="${esc(text(key))}" maxlength="100" required>`}</label>`,
+        `<label>${esc({ welcome: "Título da página inicial", welcomeBody: "Descrição da página inicial", heroEyebrow: "Identificação do banner", heroTitle: "Título do banner", heroBody: "Texto do banner", coursesTitle: "Título das trilhas", catalogTitle: "Título do catálogo de cursos", continueTitle: "Título de continuar assistindo", catalogSearch: "Busca de cursos e aulas", supportTitle: "Título do suporte", supportBody: "Texto do suporte", loginTitle: "Título do acesso", loginBody: "Descrição do acesso", navHome: "Menu: início", navCourses: "Menu: trilhas", navMaterials: "Menu: materiais", navProgress: "Menu: progresso", navHelp: "Menu: ajuda" }[key])}${key.includes("Body") || key === "heroTitle" ? `<textarea name="${key}" rows="2" maxlength="500" required>${esc(text(key))}</textarea>` : `<input name="${key}" value="${esc(text(key))}" maxlength="100" required>`}</label>`,
     )
     .join(
       "",
@@ -572,7 +520,7 @@ function operations() {
       "Configurações do ambiente",
       "Visão técnica para acompanhar as próximas etapas da instalação.",
     ) +
-    `<section class="panel"><h2>Ambiente informado</h2><dl class="data-grid"><div><dt>Domínio de referência</dt><dd>onboarding.kaizenmidias.com</dd></div><div><dt>Hospedagem atual</dt><dd>aaPanel • informado pelo responsável</dd></div><div><dt>PHP de destino</dt><dd>8.4 • informado pelo responsável</dd></div><div><dt>Versão desta entrega</dt><dd>0.1.0 • prévia visual</dd></div></dl><div class="inline-note">${icon("help")} Dados de referência. Esta tela não inspeciona nem se conecta à hospedagem.</div></section><div class="operations-grid">${[
+    `<section class="panel"><h2>Ambiente informado</h2><dl class="data-grid"><div><dt>Domínio de referência</dt><dd>onboarding.kaizenmidias.com</dd></div><div><dt>Hospedagem atual</dt><dd>aaPanel • informado pelo responsável</dd></div><div><dt>PHP de destino</dt><dd>8.4 • informado pelo responsável</dd></div><div><dt>Versão desta entrega</dt><dd>0.2.0 • prévia visual</dd></div></dl><div class="inline-note">${icon("help")} Dados de referência. Esta tela não inspeciona nem se conecta à hospedagem.</div></section><div class="operations-grid">${[
       ["lock", "Autenticação e permissões"],
       ["folder", "Mídia privada e upload retomável"],
       ["mail", "SMTP e convites"],
@@ -604,6 +552,14 @@ const notFound = () =>
     link("/inicio", "Ir para o início", "btn btn-primary"),
   );
 function render() {
+  const playingVideo = $("#lesson-video");
+  if (playingVideo?.dataset.lessonId)
+    state.positions[playingVideo.dataset.lessonId] = playingVideo.currentTime;
+  const noteDraft = $("#lesson-notes");
+  if (noteDraft?.dataset.lessonId) {
+    state.notes[noteDraft.dataset.lessonId] = noteDraft.value;
+    persist();
+  }
   applyBrand();
   const [root, id, detail] = route();
   document.title = `${isAdmin() ? "Painel administrativo" : "Área do cliente"} · ${brand().name}`;
@@ -641,6 +597,7 @@ function render() {
         progresso: [progressPage, text("navProgress")],
         ajuda: [helpPage, text("navHelp")],
         perfil: [profilePage, "Minha conta"],
+        salvos: [() => academy().saved(), "Aulas salvas"],
       };
       if (root === "curso") {
         content = courseDetail(id);
@@ -710,6 +667,10 @@ function clientForm(id) {
 }
 function courseForm(id) {
   const c = state.courses.find((c) => c.id === id) || {};
+  const images = {
+    coverImage: c.coverImage || "",
+    landscapeImage: c.landscapeImage || "",
+  };
   openModal(
     id ? "Configurar trilha" : "Nova trilha de conhecimento",
     `<form>${input("Título", "title", c.title, "text", 'required maxlength="120"')}${input("Categoria", "category", c.category || "Conhecimento")}<label>Descrição<textarea name="description" required maxlength="400" rows="3">${esc(c.description)}</textarea></label><label>Aparência da capa<select name="tone">${[
@@ -723,9 +684,23 @@ function courseForm(id) {
       )
       .join(
         "",
-      )}</select></label><label class="checkbox-label"><input type="checkbox" name="sequence" ${c.sequence ? "checked" : ""}> Exigir conclusão das aulas em sequência</label>${modalFooter()}</form>`,
+      )}</select></label><fieldset><legend>Capas do curso</legend><p class="form-note">Opcional. Sem imagem, a prévia cria uma capa com o título do curso. PNG, JPEG ou WebP até 600 KB por imagem, guardados neste navegador.</p>${[
+      ["coverImage", "Capa vertical · proporção 2:3"],
+      ["landscapeImage", "Capa horizontal · proporção 16:9"],
+    ]
+      .map(
+        ([key, label]) =>
+          `<div class="course-image-field"><label>${label}<input type="file" data-course-image="${key}" accept="image/png,image/jpeg,image/webp"></label><div id="preview-${key}" class="course-image-sample">${images[key] ? `<img src="${esc(images[key])}" alt="Prévia da capa">` : "Capa automática"}</div><button type="button" class="btn btn-secondary" data-clear-image="${key}">Usar capa automática</button></div>`,
+      )
+      .join(
+        "",
+      )}</fieldset><label class="checkbox-label"><input type="checkbox" name="sequence" ${c.sequence ? "checked" : ""}> Exigir conclusão das aulas em sequência</label>${modalFooter()}</form>`,
     (fd) => {
-      const v = { ...Object.fromEntries(fd), sequence: fd.has("sequence") };
+      const v = {
+        ...Object.fromEntries(fd),
+        ...images,
+        sequence: fd.has("sequence"),
+      };
       if (id) Object.assign(c, v);
       else
         state.courses.push({
@@ -740,6 +715,35 @@ function courseForm(id) {
       render();
       toast("Trilha salva na demonstração.");
     },
+  );
+  modal.querySelectorAll("[data-course-image]").forEach((field) =>
+    field.addEventListener("change", () => {
+      const file = field.files[0],
+        key = field.dataset.courseImage;
+      if (!file) return;
+      if (
+        !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+        file.size > 614400
+      ) {
+        field.value = "";
+        return toast("Selecione PNG, JPEG ou WebP de até 600 KB.");
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        images[key] = reader.result;
+        $("#preview-" + key).innerHTML =
+          `<img src="${esc(reader.result)}" alt="Prévia da capa">`;
+      };
+      reader.readAsDataURL(file);
+    }),
+  );
+  modal.querySelectorAll("[data-clear-image]").forEach((button) =>
+    button.addEventListener("click", () => {
+      const key = button.dataset.clearImage;
+      images[key] = "";
+      $("#preview-" + key).textContent = "Capa automática";
+      modal.querySelector(`[data-course-image="${key}"]`).value = "";
+    }),
   );
 }
 function lessonForm(courseId, moduleId, id) {
@@ -784,6 +788,24 @@ const csvSafe = (v) => {
   return '"' + s.replace(/"/g, '""') + '"';
 };
 function bindForms() {
+  $("#academy-search")?.addEventListener("input", (e) => {
+    search = e.target.value;
+    const popover = $("#academy-search-popover");
+    popover.hidden = !search.trim();
+    popover.innerHTML = academy().globalResults(search);
+    const results = $("#academy-results");
+    if (results) results.innerHTML = academy().results(search);
+    $(".academy-shell")?.classList.toggle("searching", !!search.trim());
+  });
+  $("#lesson-search")?.addEventListener("input", (e) => {
+    const info = lessonInfo(route()[1]);
+    if (info)
+      $("#syllabus-modules").innerHTML = academy().outline(
+        info.c,
+        info.l.id,
+        e.target.value,
+      );
+  });
   $("#auth-form")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget),
@@ -935,8 +957,43 @@ document.addEventListener("click", (e) => {
   if (action === "menu") {
     menuOpen = !menuOpen;
     render();
-    if (menuOpen) $(".sidebar a")?.focus();
-    else $(".mobile-menu")?.focus();
+    if (menuOpen) $(".academy-drawer a, .sidebar a")?.focus();
+    else $(".academy-menu-trigger, .mobile-menu")?.focus();
+    return;
+  }
+  if (action === "toggle-outline") {
+    outlineOpen = !outlineOpen;
+    render();
+    if (outlineOpen && matchMedia("(max-width:760px)").matches)
+      $(".academy-syllabus")?.scrollIntoView({ block: "start" });
+    return;
+  }
+  if (action === "lesson-tab") {
+    lessonTab = id;
+    render();
+    $("#tab-" + id)?.focus({ preventScroll: true });
+    return;
+  }
+  if (action === "save-note") {
+    state.notes[id] = $("#lesson-notes")?.value || "";
+    persist();
+    $("#notes-status").textContent = "Anotação salva neste navegador.";
+    toast("Anotação salva nesta demonstração.");
+    return;
+  }
+  if (action === "save-lesson") {
+    state.saved = state.saved.includes(id)
+      ? state.saved.filter((v) => v !== id)
+      : [...state.saved, id];
+    persist();
+    render();
+    return;
+  }
+  if (action === "rate-lesson") {
+    const rating = Number(el.dataset.rating);
+    state.ratings[id] = state.ratings[id] === rating ? 0 : rating;
+    persist();
+    render();
     return;
   }
   if (action === "notifications") {
@@ -1197,6 +1254,7 @@ window.addEventListener("hashchange", () => {
   menuOpen = false;
   if (modal.open) modal.close();
   search = "";
+  lessonTab = "description";
   render();
   window.scrollTo(0, 0);
   $("main h1")?.focus({ preventScroll: true });
@@ -1205,7 +1263,27 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && menuOpen) {
     menuOpen = false;
     render();
-    $(".mobile-menu")?.focus();
+    $(".academy-menu-trigger, .mobile-menu")?.focus();
+  }
+  if (e.key === "Escape") {
+    const popover = $("#academy-search-popover");
+    if (popover) popover.hidden = true;
+  }
+  if (
+    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key) &&
+    e.target.matches('.classroom-tabs [role="tab"]')
+  ) {
+    e.preventDefault();
+    const keys = ["description", "materials", "notes"];
+    const idx = keys.indexOf(lessonTab);
+    lessonTab =
+      e.key === "Home"
+        ? keys[0]
+        : e.key === "End"
+          ? keys[2]
+          : keys[(idx + (e.key === "ArrowRight" ? 1 : 2)) % 3];
+    render();
+    $("#tab-" + lessonTab)?.focus({ preventScroll: true });
   }
 });
 matchMedia("(max-width:760px)").addEventListener("change", () => {

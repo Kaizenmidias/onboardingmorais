@@ -2,10 +2,10 @@ $ErrorActionPreference = 'Stop'
 $taskProject = Split-Path -Parent $PSScriptRoot
 $taskPublic = Join-Path $taskProject 'public'
 $taskDist = Join-Path $taskProject 'dist'
-$taskArchive = Join-Path $taskDist 'morais-previa-visual-0.1.0.zip'
+$taskArchive = Join-Path $taskDist 'morais-previa-visual-0.2.0.zip'
 & php -l (Join-Path $taskPublic 'index.php')
 if ($LASTEXITCODE -ne 0) { throw 'A verificação do PHP falhou.' }
-foreach ($taskScript in @('app.js', 'data.js')) {
+foreach ($taskScript in @('app.js', 'data.js', 'academy.js')) {
     & node --check (Join-Path $taskPublic "assets/$taskScript")
     if ($LASTEXITCODE -ne 0) { throw "A verificação de $taskScript falhou." }
 }
