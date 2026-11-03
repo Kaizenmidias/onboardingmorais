@@ -23,6 +23,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-sr
     <link rel="stylesheet" href="assets/app.css">
     <link rel="stylesheet" href="assets/academy.css">
     <script type="module" src="assets/app.js"></script>
+    <script>if (!location.hash) location.hash = '#/login';</script>
 </head>
 <body>
     <a class="skip-link" href="#main-content" data-action="skip-main">Pular para o conteúdo</a>
