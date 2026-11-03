@@ -43,6 +43,8 @@ A produção exige hospedagem que permita esse uso e disponibilize entrega priva
 
 O repositório já contém `app/bootstrap.php`, `public/install.php`, `public/api.php`, `public/upload.php` e `public/media.php`. O instalador cria o schema, o primeiro administrador e os valores iniciais de white label. O painel pode persistir cursos, módulos, aulas e clientes quando a instalação estiver configurada. Vídeos MP4/WebM/MOV/M4V são enviados em partes de 8 MiB, com limite inicial de 10 GiB, para armazenamento privado fora da pasta pública.
 
+Para gerar um pacote que já contém o núcleo funcional, execute `scripts/package-functional.ps1`. O ZIP coloca `index.php`, `api.php` e os assets na raiz do site, além de `app/`, `config/`, `database/` e `storage/`. Depois de extrair no diretório do subdomínio, abra `/install.php`, informe o banco e crie o primeiro administrador. Não reutilize o ZIP da prévia visual para essa instalação.
+
 Para concluir a operação, ainda falta ligar todas as telas administrativas aos endpoints, criar convite/recuperação por SMTP, aplicar autorização de mídia para clientes, concluir materiais e relatórios e homologar o limite real do aaPanel.
 
 ## Próxima etapa

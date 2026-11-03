@@ -7,6 +7,7 @@
 - Adiciona sessões, login, configurações white label persistidas e endpoints de CRUD para conteúdos e clientes.
 - Adiciona upload de vídeo em partes de 8 MiB, armazenamento privado e limite inicial de 10 GiB por arquivo.
 - Mantém fallback demonstrativo local enquanto o banco não estiver instalado.
+- Adiciona pacote funcional separado com a estrutura correta para instalação no diretório do subdomínio.
 
 ## Prévia visual 0.2.0 — 03/11/2026
 
