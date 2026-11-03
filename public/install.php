@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__) . '/app/bootstrap.php';
+require __DIR__ . '/app/bootstrap.php';
 $configFile = APP_ROOT . '/config/config.php';
 if (is_file($configFile) && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') { http_response_code(409); exit('A instalação já foi configurada.'); }
 $error = null; $done = false;

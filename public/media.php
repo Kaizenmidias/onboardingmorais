@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__) . '/app/bootstrap.php';
+require __DIR__ . '/app/bootstrap.php';
 if (!is_file(APP_ROOT . '/config/config.php')) { http_response_code(503); exit; }
 $config=app_config(); if(session_status()!==PHP_SESSION_ACTIVE){session_name($config['app']['session_name']??'onboarding_session');session_start();}
 $user=require_user(['agency_admin','office_admin','client']);

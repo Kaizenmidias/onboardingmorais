@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__) . '/app/bootstrap.php';
+require __DIR__ . '/app/bootstrap.php';
 if (!is_file(APP_ROOT . '/config/config.php')) json_response(['error'=>'Instalação pendente.'],503);
 $config=app_config();if(session_status()!==PHP_SESSION_ACTIVE){session_name($config['app']['session_name']??'onboarding_session');session_start();} $user=require_user(['agency_admin','office_admin']); check_csrf();
 $action=$_GET['action']??'start'; $dir=rtrim($config['app']['upload_dir'],'/\\'); if(!is_dir($dir))mkdir($dir,0750,true);

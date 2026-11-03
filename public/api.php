@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__) . '/app/bootstrap.php';
+require __DIR__ . '/app/bootstrap.php';
 
 if (!is_file(APP_ROOT . '/config/config.php')) json_response(['error' => 'Instalação pendente.', 'install' => true], 503);
 $config = app_config();
