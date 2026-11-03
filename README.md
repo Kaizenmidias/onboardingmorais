@@ -4,9 +4,15 @@ Portal independente do WordPress, com uma instalação por escritório, desenvol
 
 ## Estado do projeto
 
-Arquitetura v1.0 consolidada para revisão em 03/11/2026. A implementação visual e funcional ainda não foi iniciada. A aprovação da arquitetura e o recebimento da referência visual antecedem o desenvolvimento do front-end; sua aprovação antecede a integração do backend.
+Arquitetura v1.0 consolidada e primeira prévia visual 0.1.0 implementada em 03/11/2026, após a instrução de prosseguir com a criação. O frontend usa a identidade da Morais e dados fictícios. A revisão e aprovação visual antecedem a integração do backend.
 
-O ambiente de testes informado usa **aaPanel**, no IP **89.116.52.173**, com domínio previsto **https://onboarding.kaizenmidias.com/**. Produção continua planejada para hospedagem compartilhada compatível com cPanel. Validar um ambiente não homologa automaticamente o outro.
+O ambiente atual usa **aaPanel**, PHP **8.4**, diretório **`/www/wwwroot/onboarding.kaizenmidias.com`** e domínio **https://onboarding.kaizenmidias.com/**, com SSL informado como configurado. A prioridade atual é esse ambiente; a portabilidade para hospedagem compartilhada permanece no planejamento de replicação.
+
+## Revisar a interface
+
+Execute `php -S 127.0.0.1:8085 -t public` e abra `http://127.0.0.1:8085/`. Não é necessário instalar dependências para executar esta prévia. O aviso superior permite alternar entre cliente e admin.
+
+Leia o [guia da prévia visual e publicação no aaPanel](docs/07-PREVIA-VISUAL.md). A prévia não autentica usuários, não acessa MySQL nem envia arquivos/e-mails ao servidor. Utilize dados fictícios.
 
 ## Documentação
 
@@ -18,6 +24,7 @@ O ambiente de testes informado usa **aaPanel**, no IP **89.116.52.173**, com dom
 | [Mídia e capacidade](docs/04-MIDIA-E-CAPACIDADE.md) | Arquivos acima de 2 GB, uploads, entrega privada e dimensionamento |
 | [Operação e homologação](docs/05-OPERACAO-E-HOMOLOGACAO.md) | DNS, aaPanel, cPanel, instalador, atualizações, backups e testes |
 | [Requisitos e entregas](docs/06-REQUISITOS-E-ENTREGAS.md) | Rastreabilidade, fases, critérios de aceite e pendências |
+| [Prévia visual](docs/07-PREVIA-VISUAL.md) | Executar, revisar, empacotar e publicar a etapa visual |
 | [Histórico de alterações](CHANGELOG.md) | Mudanças versionadas |
 
 ## Condição para vídeos locais
@@ -34,4 +41,4 @@ A produção exige hospedagem que permita esse uso e disponibilize entrega priva
 
 ## Próxima etapa
 
-Revisar a arquitetura. Depois, preparar o domínio e o ambiente de testes com os acessos necessários, registrar os recursos efetivamente disponíveis e receber a referência visual. Este repositório ainda não contém um instalador ou aplicação executável.
+Revisar a interface desktop/mobile e ajustar a direção visual. Depois do aceite, conectar backend, MySQL, autenticação, permissões, upload retomável, entrega privada de vídeos e instalador. A publicação remota depende do acesso ao aaPanel ou transferência de arquivos; o pacote de prévia já pode ser gerado pelo script documentado.
