@@ -276,7 +276,7 @@ function shell(content, section = "Visão geral") {
     })
     .join("")}</nav>
   ${admin ? `<div class="sidebar-note">${icon("shield")}<strong>Sua marca. Seu portal.</strong><p>Uma experiência exclusiva para os clientes do seu escritório.</p></div>` : `<div class="sidebar-help"><span class="help-symbol">${icon("message")}</span><strong>Estamos com você.</strong><p>Precisa de uma orientação?</p>${contact("text-link")}</div>`}
-  <div class="sidebar-bottom"><a href="#/perfil" class="nav-link">${icon("user")}Minha conta</a><a href="#/login" class="nav-link">${icon("logout")}Sair da prévia</a><small>© 2026 ${esc(brand().name)}</small></div></aside>
+  <div class="sidebar-bottom"><a href="#/perfil" class="nav-link">${icon("user")}Minha conta</a><a href="#/login" data-action="logout" class="nav-link">${icon("logout")}Sair</a><small>© 2026 ${esc(brand().name)}</small></div></aside>
   <div class="workspace"><header class="topbar"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Abrir menu" aria-expanded="${menuOpen}">${icon("menu")}</button><div class="breadcrumbs">${admin ? "Administração" : "Área do cliente"} ${icon("chevron")} <span>${esc(section)}</span></div><div class="topbar-actions"><span class="secure-label">${icon("shield")} Acesso exclusivo</span><button class="icon-btn notification" data-action="notifications" aria-label="Ver comunicados">${icon("bell")}<i></i></button><a class="user-control" href="#/perfil">${avatar(admin ? "Equipe Morais" : "Mariana Oliveira")}<span><strong>${admin ? "Equipe Morais" : "Mariana Oliveira"}</strong><small>${admin ? "Administrador" : "Empresa Exemplo"}</small></span>${icon("down")}</a></div></header>
   <main id="main-content" tabindex="-1" class="main-content">${content}</main><footer class="footer"><span>Conhecimento e proximidade em cada etapa.</span><a href="#/privacidade">Privacidade e termos ${icon("shield")}</a></footer></div></div>`;
 }
@@ -378,7 +378,7 @@ function authPage(kind = "login") {
         : reset
           ? "Crie uma nova senha."
           : "Vamos recuperar seu acesso.";
-  return `<div class="auth-page"><aside class="auth-art"><a href="#/inicio">${logo()}</a><div><span class="eyebrow">MORAIS CONTABILIDADE CONSULTIVA</span><h1>Uma parceria que vai além dos números.</h1><p>Conhecimento, orientação e proximidade para sua empresa seguir em frente.</p><span class="auth-art-line"></span></div><small>Conhecimento que aproxima.</small></aside><main id="main-content" class="auth-main"><div class="auth-box"><span class="auth-kicker">${icon("shield")} ${esc(brand().portal)}</span><h2>${esc(title)}</h2><p>${esc(login ? text("loginBody") : invite ? "Você foi convidado pelo escritório. Defina sua senha para começar." : reset ? "Escolha uma senha para acessar sua área." : "Informe seu e-mail para visualizar o fluxo de recuperação.")}</p><form id="auth-form" data-kind="${kind}">${!invite && !reset ? `<label>E-mail<input type="email" name="email" autocomplete="username" placeholder="seuemail@empresa.com.br" required></label>` : ""}${login || invite || reset ? `<label>Senha<div class="password-field"><input type="password" name="password" autocomplete="${login ? "current-password" : "new-password"}" placeholder="${login ? "Digite sua senha" : "Crie uma senha"}" minlength="${login ? "1" : "8"}" required><button type="button" class="icon-btn" data-action="show-password" aria-label="Mostrar senha">${icon("eye")}</button></div></label>` : ""}${invite || reset ? '<label>Confirme sua senha<input type="password" name="confirmation" autocomplete="new-password" minlength="8" required></label>' : ""}${login ? '<a class="forgot-link" href="#/recuperar">Esqueci minha senha</a>' : ""}<button class="btn btn-primary full" type="submit">${login ? "Acessar minha área" : invite ? "Criar meu acesso" : reset ? "Salvar nova senha" : "Solicitar recuperação"} ${icon("arrow")}</button><p id="auth-message" role="status"></p></form>${login ? '<div class="auth-divider"><span>EXPLORE A DEMONSTRAÇÃO</span></div><div class="demo-choices"><a href="#/inicio">Área do cliente ' + icon("arrow") + '</a><a href="#/admin">Painel administrativo ' + icon("arrow") + "</a></div>" : link("/login", `${icon("left")} Voltar para o acesso`, "text-link")}<div class="auth-demo-note">Prévia visual. Não informe senhas reais. Nenhuma credencial ou solicitação de e-mail é enviada.</div><a class="auth-support" href="#/ajuda">Precisa de ajuda? Fale com a equipe.</a></div><footer>© 2026 ${esc(brand().name)} · Acesso exclusivo para clientes</footer></main></div>`;
+  return `<div class="auth-page"><aside class="auth-art"><a href="#/login">${logo()}</a><div><span class="eyebrow">MORAIS CONTABILIDADE CONSULTIVA</span><h1>Uma parceria que vai além dos números.</h1><p>Conhecimento, orientação e proximidade para sua empresa seguir em frente.</p><span class="auth-art-line"></span></div><small>Conhecimento que aproxima.</small></aside><main id="main-content" class="auth-main"><div class="auth-box"><span class="auth-kicker">${icon("shield")} ${esc(brand().portal)}</span><h2>${esc(title)}</h2><p>${esc(login ? text("loginBody") : invite ? "Você foi convidado pelo escritório. Defina sua senha para começar." : reset ? "Escolha uma senha para acessar sua área." : "Informe seu e-mail para visualizar o fluxo de recuperação.")}</p><form id="auth-form" data-kind="${kind}">${!invite && !reset ? `<label>Login ou e-mail<input type="text" name="email" autocomplete="username" placeholder="seu login ou e-mail" required></label>` : ""}${login || invite || reset ? `<label>Senha<div class="password-field"><input type="password" name="password" autocomplete="${login ? "current-password" : "new-password"}" placeholder="${login ? "Digite sua senha" : "Crie uma senha"}" minlength="${login ? "1" : "8"}" required><button type="button" class="icon-btn" data-action="show-password" aria-label="Mostrar senha">${icon("eye")}</button></div></label>` : ""}${invite || reset ? '<label>Confirme sua senha<input type="password" name="confirmation" autocomplete="new-password" minlength="8" required></label>' : ""}${login ? '<a class="forgot-link" href="#/recuperar">Esqueci minha senha</a>' : ""}<button class="btn btn-primary full" type="submit">${login ? "Acessar minha área" : invite ? "Criar meu acesso" : reset ? "Salvar nova senha" : "Solicitar recuperação"} ${icon("arrow")}</button><p id="auth-message" role="status"></p></form>${login ? '<div class="auth-demo-note">Acesso de teste: kaizen</div>' : link("/login", `${icon("left")} Voltar para o acesso`, "text-link")}<div class="auth-demo-note">Acesso exclusivo para clientes. Não compartilhe sua senha.</div><a class="auth-support" href="#/ajuda">Precisa de ajuda? Fale com a equipe.</a></div><footer>© 2026 ${esc(brand().name)} · Acesso exclusivo para clientes</footer></main></div>`;
 }
 function statsCard(ic, value, label, detail = "", tone = "") {
   return `<div class="stat-card"><span class="stat-icon ${tone}">${icon(ic)}</span><span class="stat-label">${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(detail)}</small></div>`;
@@ -601,6 +601,17 @@ function render() {
   }
   applyBrand();
   const [root, id, detail] = route();
+  const storedUser = (() => { try { return JSON.parse(sessionStorage.getItem("onboarding-user") || "null"); } catch { return null; } })();
+  if (!["login", "recuperar", "convite", "redefinir"].includes(root) && !storedUser) {
+    if (location.hash !== "#/login") location.hash = "/login";
+    app.innerHTML = authPage("login");
+    bindForms();
+    return;
+  }
+  if (root === "admin" && storedUser?.role !== "admin") {
+    location.hash = "/inicio";
+    return;
+  }
   document.title = `${isAdmin() ? "Painel administrativo" : "Área do cliente"} · ${brand().name}`;
   if (["login", "recuperar", "convite", "redefinir"].includes(root))
     app.innerHTML = authPage(root);
@@ -878,7 +889,14 @@ function bindForms() {
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
       e.currentTarget.reset();
       if (result?.user) { sessionStorage.setItem("onboarding-user", JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
-      else { location.hash = "/inicio"; toast("Prévia local: o banco ainda não está instalado neste ambiente."); }
+      else if (String(fd.get("email")).trim().toLowerCase() === "kaizen" && fd.get("password") === "Kaizen@@2026") {
+        const user = { id: "demo-kaizen", name: "Kaizen", role: "admin", email: "kaizen" };
+        sessionStorage.setItem("onboarding-user", JSON.stringify(user));
+        location.hash = "/admin";
+        toast("Acesso de teste realizado.");
+      } else {
+        $("#auth-message").textContent = "Login ou senha inválidos.";
+      }
     } else {
       e.currentTarget.reset();
       $("#auth-message").textContent =
@@ -1053,6 +1071,11 @@ document.addEventListener("click", (e) => {
   if (!el) return;
   e.preventDefault();
   const { action, id, direction } = el.dataset;
+  if (action === "logout") {
+    sessionStorage.removeItem("onboarding-user");
+    location.hash = "/login";
+    return;
+  }
   if (action === "close-modal") {
     modal.close();
     return;
