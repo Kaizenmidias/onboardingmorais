@@ -686,6 +686,7 @@ const modalFooter = (label = "Salvar na demonstração") =>
   `<div class="modal-footer"><button class="btn btn-secondary" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="submit">${label} ${icon("check")}</button></div>`;
 function clientForm(id) {
   const c = state.clients.find((c) => c.id === id) || {};
+  const accessPassword = !id ? input("Senha de acesso", "password", "", "password", 'required minlength="8" autocomplete="new-password"') : "";
   openModal(
     id ? "Editar cliente" : "Um novo começo para seu cliente",
     `<form>${input("Nome do responsável", "name", c.name, "text", 'required maxlength="80"')}${input("Empresa", "company", c.company, "text", 'required maxlength="100"')}${input("E-mail", "email", c.email, "email", "required")}<div class="form-grid">${input("CNPJ (opcional nesta demonstração)", "cnpj", c.cnpj, "text", 'maxlength="18"')}${input("Telefone", "phone", c.phone, "tel")}${input("WhatsApp", "whatsapp", c.whatsapp, "tel")}${input("Grupo", "group", c.group || "Novos clientes")}${input("Expiração do acesso", "expires", c.expires, "date")}</div><fieldset><legend>Trilhas liberadas</legend>${state.courses.map((v) => `<label class="checkbox-label"><input type="checkbox" name="courses" value="${v.id}" ${(c.courses || ["primeiros-passos"]).includes(v.id) ? "checked" : ""}>${esc(v.title)}</label>`).join("")}</fieldset><p class="form-note">Cadastro de demonstração. Nenhum convite real será enviado.</p>${modalFooter()}</form>`,
@@ -709,12 +710,13 @@ function clientForm(id) {
       if (id) Object.assign(c, value);
       else state.clients.push(value);
       persist();
-      void apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null }) });
+      void apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, password: value.password || "", cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null }) });
       modal.close();
       render();
       toast("Cadastro salvo na demonstração.");
     },
   );
+  if (!id) modal.querySelector(".form-grid")?.insertAdjacentHTML("beforebegin", accessPassword);
 }
 function courseForm(id) {
   const c = state.courses.find((c) => c.id === id) || {};
@@ -1191,12 +1193,12 @@ document.addEventListener("click", (e) => {
   if (action === "preview-video") {
     openModal(
       "Experimente o player",
-      `<p>As aulas ainda não possuem vídeos cadastrados. Selecione um arquivo local para testar reprodução, controles e retomada.</p><label class="btn btn-primary file-button">${icon("play")} Selecionar vídeo<input id="local-video" type="file" accept="video/mp4,video/webm"></label><p class="form-note">O vídeo fica apenas nesta sessão. Nenhum arquivo será enviado.</p>`,
+      `<p>As aulas ainda não possuem vídeos cadastrados. Selecione um arquivo local para testar reprodução, controles e retomada.</p><label class="btn btn-primary file-button">${icon("play")} Selecionar vídeo<input id="local-video" type="file" accept="video/mp4,video/webm,video/quicktime,.mov"></label><p class="form-note">O vídeo fica apenas nesta sessão. Nenhum arquivo será enviado.</p>`,
     );
     $("#local-video").onchange = (ev) => {
       const f = ev.target.files[0];
       if (!f) return;
-      if (!["video/mp4", "video/webm"].includes(f.type)) {
+      if (!["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"].includes(f.type) && !/\.mov$/i.test(f.name)) {
         toast("Selecione MP4 ou WebM compatível.");
         return;
       }
