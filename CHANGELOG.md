@@ -1,5 +1,13 @@
 # Histórico de alterações
 
+## Núcleo funcional — 04/11/2026
+
+- Adiciona schema MySQL/MariaDB para instalações independentes, usuários, clientes, cursos, módulos, aulas, mídia, acesso, progresso e auditoria.
+- Adiciona instalador web compatível com aaPanel/cPanel para configurar banco, primeiro administrador e identidade inicial.
+- Adiciona sessões, login, configurações white label persistidas e endpoints de CRUD para conteúdos e clientes.
+- Adiciona upload de vídeo em partes de 8 MiB, armazenamento privado e limite inicial de 10 GiB por arquivo.
+- Mantém fallback demonstrativo local enquanto o banco não estiver instalado.
+
 ## Prévia visual 0.2.0 — 03/11/2026
 
 - Redesenha o cliente a partir das duas capturas Avante fornecidas: catálogo escuro, cabeçalho horizontal, menu recolhido, banner central, continuar assistindo e capas verticais.

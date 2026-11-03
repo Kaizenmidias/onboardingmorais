@@ -128,6 +128,26 @@ const persist = () => {
     return false;
   }
 };
+let apiCsrf = "";
+async function apiRequest(action, options = {}) {
+  try {
+    if (!apiCsrf) {
+      const token = await fetch("api.php?action=csrf", { credentials: "same-origin" });
+      if (!token.ok) return null;
+      apiCsrf = (await token.json()).csrf || "";
+    }
+    const method = options.method || "GET";
+    const response = await fetch(`api.php?action=${encodeURIComponent(action)}`, {
+      ...options,
+      method,
+      credentials: "same-origin",
+      headers: { ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }), ...(method !== "GET" ? { "X-CSRF-Token": apiCsrf } : {}), ...(options.headers || {}) },
+    });
+    const data = await response.json().catch(() => null);
+    if (response.status === 419) { apiCsrf = ""; return null; }
+    return response.ok ? data : null;
+  } catch { return null; }
+}
 let toastTimer;
 function toast(message) {
   $("#toast").textContent = message;
@@ -135,6 +155,23 @@ function toast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $("#toast").classList.remove("visible"), 5000);
 }
+async function loadBackend() {
+  const data = await apiRequest("bootstrap");
+  if (!data) return;
+  if (data.settings) {
+    for (const [key, value] of Object.entries(data.settings)) {
+      const [group, name] = key.split(".", 2);
+      if (group === "brand" && name) state.settings.brand[name] = value;
+      if (group === "texts" && name) state.settings.texts[name] = value;
+    }
+  }
+  if (Array.isArray(data.courses) && data.courses.length) {
+    state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
+  }
+  persist();
+  render();
+}
+const secondsToDuration = (seconds) => `${String(Math.floor(Number(seconds || 0) / 60)).padStart(2, "0")}:${String(Number(seconds || 0) % 60).padStart(2, "0")}`;
 const link = (url, label, cls = "btn") =>
   `<a class="${cls}" href="#${url}">${label}</a>`;
 const badge = (label, kind = "neutral") =>
@@ -167,6 +204,8 @@ function applyBrand() {
     "--font",
     b.font === "Arial" ? "Arial, sans-serif" : "Manrope, sans-serif",
   );
+  const favicon = document.querySelector('link[rel="icon"]');
+  if (favicon && /^(assets\/|data:image\/)/.test(b.favicon || "")) favicon.href = b.favicon;
 }
 function logo() {
   const src = /^(assets\/|data:image\/(png|jpeg|webp);base64,)/.test(
@@ -659,6 +698,7 @@ function clientForm(id) {
       if (id) Object.assign(c, value);
       else state.clients.push(value);
       persist();
+      void apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null }) });
       modal.close();
       render();
       toast("Cadastro salvo na demonstração.");
@@ -711,6 +751,7 @@ function courseForm(id) {
           modules: [],
         });
       persist();
+      void apiRequest("course.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, title: v.title, category: v.category, description: v.description, status: c.status || "draft", sequence_required: v.sequence }) });
       modal.close();
       render();
       toast("Trilha salva na demonstração.");
@@ -760,6 +801,7 @@ function lessonForm(courseId, moduleId, id) {
       if (id) Object.assign(l, v);
       else m.lessons.push({ ...v, id: uid("aula") });
       persist();
+      void apiRequest("lesson.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, module_id: /^\d+$/.test(String(moduleId || "")) ? Number(moduleId) : 0, title: v.title, body: v.body || "", duration_seconds: v.duration ? v.duration.split(":").reduce((a, n) => a * 60 + Number(n), 0) : 0, status: "draft" }) });
       modal.close();
       render();
       toast("Aula salva na demonstração.");
@@ -806,7 +848,7 @@ function bindForms() {
         e.target.value,
       );
   });
-  $("#auth-form")?.addEventListener("submit", (e) => {
+  $("#auth-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget),
       kind = e.currentTarget.dataset.kind;
@@ -817,17 +859,18 @@ function bindForms() {
       $("#auth-message").textContent = "As senhas precisam ser iguais.";
       return;
     }
-    e.currentTarget.reset();
     if (kind === "login") {
-      location.hash = "/inicio";
-      toast(
-        "Você está navegando na demonstração. Não houve autenticação real.",
-      );
-    } else
+      const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
+      e.currentTarget.reset();
+      if (result?.user) { sessionStorage.setItem("onboarding-user", JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
+      else { location.hash = "/inicio"; toast("Prévia local: o banco ainda não está instalado neste ambiente."); }
+    } else {
+      e.currentTarget.reset();
       $("#auth-message").textContent =
         kind === "recuperar"
           ? "Solicitação simulada. Nenhum e-mail foi enviado."
           : "Fluxo visual concluído. Nenhuma senha foi gravada.";
+    }
   });
   $("#brand-form")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -897,10 +940,25 @@ function bindForms() {
       const id = uid("arquivo");
       state.files.push({ id, name: f.name, size: f.size, type: f.type });
       mediaUrls.set(id, URL.createObjectURL(f));
+      if (/\.(mp4|webm|mov|m4v)$/i.test(f.name)) uploadVideo(f);
     }
     persist();
     render();
   });
+}
+async function uploadVideo(file) {
+  const session = await apiRequest("session");
+  if (!session?.user) return;
+  const started = await fetch("upload.php?action=start", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRF-Token": apiCsrf }, body: JSON.stringify({ name: file.name, size: file.size, mime: file.type }) });
+  const created = started.ok ? await started.json() : null;
+  if (!created?.id) return toast("A prévia local foi mantida; não foi possível iniciar o upload no servidor.");
+  const chunkSize = created.chunk_size || 8388608;
+  for (let offset = 0; offset < file.size; offset += chunkSize) {
+    const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
+    const response = await fetch(`upload.php?action=chunk&id=${encodeURIComponent(created.id)}`, { method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": apiCsrf, "X-Upload-Offset": String(offset), "Content-Type": "application/octet-stream" }, body: chunk });
+    if (!response.ok) return toast("O upload foi interrompido. Você poderá tentar novamente.");
+  }
+  toast("Vídeo enviado para a biblioteca.");
 }
 function bindVideo() {
   const v = $("#lesson-video"),
@@ -1100,6 +1158,8 @@ document.addEventListener("click", (e) => {
             lessons: [],
           });
         persist();
+        const createdCourse = state.courses.find((c) => c.id === id);
+        void apiRequest("module.save", { method: "POST", body: JSON.stringify({ id: 0, course_id: /^\d+$/.test(String(id)) ? Number(id) : 0, title: fd.get("title"), description: "", status: "published" }) });
         modal.close();
         render();
         toast("Módulo adicionado.");
@@ -1298,3 +1358,4 @@ window.addEventListener("pagehide", () => {
   }
 });
 render();
+void loadBackend();

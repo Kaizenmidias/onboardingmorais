@@ -4,7 +4,7 @@ Portal independente do WordPress, com uma instalação por escritório, desenvol
 
 ## Estado do projeto
 
-Arquitetura v1.0 consolidada e prévia visual 0.2.0 implementada em 03/11/2026. O portal segue a estrutura de catálogo e sala de aula das capturas Avante fornecidas pelo responsável, com identidade da Morais e dados fictícios. A revisão e aprovação visual antecedem a integração do backend.
+Arquitetura v1.0 consolidada, prévia visual 0.2.0 aprovada e núcleo funcional iniciado. O portal segue a estrutura de catálogo e sala de aula das capturas fornecidas pelo responsável. A integração funcional usa PHP/PDO/MySQL, instalador web, sessões reais, white label persistente e upload retomável de vídeos.
 
 O ambiente atual usa **aaPanel**, PHP **8.4**, diretório **`/www/wwwroot/onboarding.kaizenmidias.com`** e domínio **https://onboarding.kaizenmidias.com/**, com SSL informado como configurado. A prioridade atual é esse ambiente; a portabilidade para hospedagem compartilhada permanece no planejamento de replicação.
 
@@ -12,7 +12,7 @@ O ambiente atual usa **aaPanel**, PHP **8.4**, diretório **`/www/wwwroot/onboar
 
 Execute `php -S 127.0.0.1:8085 -t public` e abra `http://127.0.0.1:8085/`. Não é necessário instalar dependências para executar esta prévia. O aviso superior permite alternar entre cliente e admin.
 
-Leia o [guia da prévia visual e publicação no aaPanel](docs/07-PREVIA-VISUAL.md). A prévia não autentica usuários, não acessa MySQL nem envia arquivos/e-mails ao servidor. Utilize dados fictícios.
+Leia o [guia da prévia visual e publicação no aaPanel](docs/07-PREVIA-VISUAL.md). A prévia continua funcionando localmente sem banco; quando instalada, o portal usa o instalador em `install.php`, banco MySQL/MariaDB e sessões reais.
 
 ## Documentação
 
@@ -39,6 +39,12 @@ A produção exige hospedagem que permita esse uso e disponibilize entrega priva
 - Credenciais, arquivos de clientes, vídeos, configurações privadas e backups ficam fora do Git.
 - A pasta `vendor/` será preparada no desenvolvimento e incluída no pacote de distribuição; não precisa estar versionada no código-fonte.
 
+## Núcleo funcional em implementação
+
+O repositório já contém `app/bootstrap.php`, `public/install.php`, `public/api.php`, `public/upload.php` e `public/media.php`. O instalador cria o schema, o primeiro administrador e os valores iniciais de white label. O painel pode persistir cursos, módulos, aulas e clientes quando a instalação estiver configurada. Vídeos MP4/WebM/MOV/M4V são enviados em partes de 8 MiB, com limite inicial de 10 GiB, para armazenamento privado fora da pasta pública.
+
+Para concluir a operação, ainda falta ligar todas as telas administrativas aos endpoints, criar convite/recuperação por SMTP, aplicar autorização de mídia para clientes, concluir materiais e relatórios e homologar o limite real do aaPanel.
+
 ## Próxima etapa
 
-Revisar a interface desktop/mobile e ajustar a direção visual. Depois do aceite, conectar backend, MySQL, autenticação, permissões, upload retomável, entrega privada de vídeos e instalador. A publicação remota depende do acesso ao aaPanel ou transferência de arquivos; o pacote de prévia já pode ser gerado pelo script documentado.
+Publicar o núcleo funcional no ambiente de testes, configurar o banco pelo instalador e validar o primeiro usuário. A publicação remota depende do acesso ao aaPanel ou transferência de arquivos.

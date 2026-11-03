@@ -40,7 +40,7 @@ O recurso de personalização desta entrega demonstra os campos principais; o ca
 ## Persistência e limites
 
 - Dados de demonstração ficam em `localStorage`, chave `morais-visual-v1`, exclusivamente no navegador/origem em que a prévia foi aberta.
-- Nenhuma conexão MySQL, autenticação, e-mail, upload para servidor ou autorização de mídia foi implementada nesta etapa.
+- A prévia visual ainda usa `localStorage` quando o instalador não está configurado. O núcleo funcional já contém os endpoints PHP, schema e instalador, mas a integração completa de todas as telas administrativas está em andamento.
 - Alterações feitas no computador não se propagam para outro navegador ou para a hospedagem.
 - Vídeos locais selecionados usam URLs temporárias da sessão; seu conteúdo binário não é salvo em `localStorage`. Logo e capas pequenas usam imagens incorporadas, com limites de tamanho na interface; se a quota do navegador acabar, a prévia informa que as alterações continuam somente na sessão.
 - Em Admin → Configurações, use “Restaurar dados da demonstração” para voltar aos exemplos iniciais.
