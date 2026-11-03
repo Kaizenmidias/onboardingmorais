@@ -792,21 +792,36 @@ function lessonForm(courseId, moduleId, id) {
     c = info?.c || state.courses.find((v) => v.id === courseId),
     m = info?.m || c?.modules.find((v) => v.id === moduleId),
     l = info?.l || {};
+  let lessonMediaId = l.media_id || "";
   if (!m) return;
   openModal(
     id ? "Editar aula" : "Adicionar aula",
-    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}${input("Duração (min:seg)", "duration", l.duration || "05:00", "text", 'required pattern="[0-9]{1,3}:[0-5][0-9]"')}<label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><p class="form-note">Texto editorial, vínculo de vídeo e anexos serão integrados ao editor funcional após o aceite visual.</p>${modalFooter()}</form>`,
+    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}${input("Duração (min:seg)", "duration", l.duration || "05:00", "text", 'required pattern="[0-9]{1,3}:[0-5][0-9]"')}<label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><label>Vídeo da aula<input id="lesson-video-file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v"></label><p id="lesson-upload-status" class="form-note">Selecione um vídeo para enviá-lo diretamente para esta aula.</p>${modalFooter()}</form>`,
     (fd) => {
       const v = Object.fromEntries(fd);
-      if (id) Object.assign(l, v);
-      else m.lessons.push({ ...v, id: uid("aula") });
+      if (id) Object.assign(l, v, { media_id: lessonMediaId });
+      else m.lessons.push({ ...v, media_id: lessonMediaId, id: uid("aula") });
       persist();
-      void apiRequest("lesson.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, module_id: /^\d+$/.test(String(moduleId || "")) ? Number(moduleId) : 0, title: v.title, body: v.body || "", duration_seconds: v.duration ? v.duration.split(":").reduce((a, n) => a * 60 + Number(n), 0) : 0, status: "draft" }) });
+      void apiRequest("lesson.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, module_id: /^\d+$/.test(String(moduleId || "")) ? Number(moduleId) : 0, title: v.title, body: v.body || "", media_id: lessonMediaId || null, duration_seconds: v.duration ? v.duration.split(":").reduce((a, n) => a * 60 + Number(n), 0) : 0, status: "draft" }) });
       modal.close();
       render();
       toast("Aula salva na demonstração.");
     },
   );
+  $("#lesson-video-file")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const status = $("#lesson-upload-status");
+    if (status) status.textContent = `Enviando ${file.name}...`;
+    uploadVideo(file).then((result) => {
+      if (result?.id) {
+        lessonMediaId = result.id;
+        if (status) status.textContent = "Vídeo enviado e vinculado a esta aula.";
+      } else if (status) {
+        status.textContent = "Vídeo selecionado localmente. O vínculo será concluído após o servidor estar configurado.";
+      }
+    });
+  });
 }
 function download(name, content, type = "text/plain;charset=utf-8") {
   const blob = new Blob(["\ufeff" + content], { type }),
@@ -929,6 +944,34 @@ function bindForms() {
     };
     reader.readAsDataURL(f);
   });
+  const brandForm = $("#brand-form");
+  if (brandForm && !$("#favicon-input")) {
+    const holder = brandForm.querySelector(".logo-upload > div:last-child");
+    if (holder) {
+      const label = document.createElement("label");
+      label.className = "btn btn-secondary file-button";
+      label.textContent = "Alterar favicon";
+      const inputEl = document.createElement("input");
+      inputEl.id = "favicon-input";
+      inputEl.type = "file";
+      inputEl.accept = "image/png,image/jpeg,image/webp,image/x-icon,image/svg+xml";
+      label.appendChild(inputEl);
+      holder.appendChild(label);
+      inputEl.addEventListener("change", (e) => {
+        const f = e.target.files?.[0];
+        if (!f || f.size > 524288) return toast("Selecione um favicon de até 512 KB.");
+        const reader = new FileReader();
+        reader.onload = () => {
+          state.settings.brand.favicon = reader.result;
+          persist();
+          applyBrand();
+          void apiRequest("setting", { method: "POST", body: JSON.stringify({ key: "brand.favicon", value: reader.result }) });
+          toast("Favicon aplicado nesta demonstração.");
+        };
+        reader.readAsDataURL(f);
+      });
+    }
+  }
   $("#media-input")?.addEventListener("change", (e) => {
     for (const f of e.target.files) {
       const allowed =
@@ -948,17 +991,24 @@ function bindForms() {
 }
 async function uploadVideo(file) {
   const session = await apiRequest("session");
-  if (!session?.user) return;
+  if (!session?.user) return null;
   const started = await fetch("upload.php?action=start", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRF-Token": apiCsrf }, body: JSON.stringify({ name: file.name, size: file.size, mime: file.type }) });
   const created = started.ok ? await started.json() : null;
-  if (!created?.id) return toast("A prévia local foi mantida; não foi possível iniciar o upload no servidor.");
+  if (!created?.id) {
+    toast("A prévia local foi mantida; não foi possível iniciar o upload no servidor.");
+    return null;
+  }
   const chunkSize = created.chunk_size || 8388608;
   for (let offset = 0; offset < file.size; offset += chunkSize) {
     const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
     const response = await fetch(`upload.php?action=chunk&id=${encodeURIComponent(created.id)}`, { method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": apiCsrf, "X-Upload-Offset": String(offset), "Content-Type": "application/octet-stream" }, body: chunk });
-    if (!response.ok) return toast("O upload foi interrompido. Você poderá tentar novamente.");
+    if (!response.ok) {
+      toast("O upload foi interrompido. Você poderá tentar novamente.");
+      return null;
+    }
   }
   toast("Vídeo enviado para a biblioteca.");
+  return { id: created.id, url: `media.php?id=${encodeURIComponent(created.id)}` };
 }
 function bindVideo() {
   const v = $("#lesson-video"),
