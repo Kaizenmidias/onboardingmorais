@@ -604,7 +604,6 @@ function render() {
   const [root, id, detail] = route();
   const storedUser = (() => { try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
   if (!["login", "recuperar", "convite", "redefinir"].includes(root) && !storedUser) {
-    if (location.hash !== "#/login") location.hash = "/login";
     app.innerHTML = authPage("login");
     bindForms();
     return;
