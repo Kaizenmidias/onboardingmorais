@@ -894,6 +894,13 @@ function bindForms() {
         toast("Acesso realizado.");
         return;
       }
+      const localClient = state.clients.find((client) => String(client.email || "").toLowerCase() === String(fd.get("email") || "").trim().toLowerCase() && client.password && client.password === fd.get("password"));
+      if (localClient) {
+        sessionStorage.setItem(AUTH_KEY, JSON.stringify({ id: localClient.id, name: localClient.name, role: "client", email: localClient.email, client_id: localClient.id }));
+        location.hash = "/inicio";
+        toast("Acesso realizado.");
+        return;
+      }
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
       e.currentTarget.reset();
       if (result?.user) { sessionStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
