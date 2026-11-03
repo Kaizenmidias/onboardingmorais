@@ -9,6 +9,7 @@ import {
 import { createAcademy } from "./academy.js";
 
 const KEY = "morais-visual-v1";
+const AUTH_KEY = "onboarding-user-v2";
 const fresh = () => ({
   version: 1,
   catalogRevision: 2,
@@ -601,7 +602,7 @@ function render() {
   }
   applyBrand();
   const [root, id, detail] = route();
-  const storedUser = (() => { try { return JSON.parse(sessionStorage.getItem("onboarding-user") || "null"); } catch { return null; } })();
+  const storedUser = (() => { try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
   if (!["login", "recuperar", "convite", "redefinir"].includes(root) && !storedUser) {
     if (location.hash !== "#/login") location.hash = "/login";
     app.innerHTML = authPage("login");
@@ -888,10 +889,10 @@ function bindForms() {
     if (kind === "login") {
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
       e.currentTarget.reset();
-      if (result?.user) { sessionStorage.setItem("onboarding-user", JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
+      if (result?.user) { sessionStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
       else if (String(fd.get("email")).trim().toLowerCase() === "kaizen" && fd.get("password") === "Kaizen@@2026") {
         const user = { id: "demo-kaizen", name: "Kaizen", role: "admin", email: "kaizen" };
-        sessionStorage.setItem("onboarding-user", JSON.stringify(user));
+        sessionStorage.setItem(AUTH_KEY, JSON.stringify(user));
         location.hash = "/admin";
         toast("Acesso de teste realizado.");
       } else {
@@ -1072,7 +1073,7 @@ document.addEventListener("click", (e) => {
   e.preventDefault();
   const { action, id, direction } = el.dataset;
   if (action === "logout") {
-    sessionStorage.removeItem("onboarding-user");
+    sessionStorage.removeItem(AUTH_KEY);
     location.hash = "/login";
     return;
   }
