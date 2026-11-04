@@ -878,8 +878,9 @@ function bindForms() {
   });
   $("#auth-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget),
-      kind = e.currentTarget.dataset.kind;
+    const form = e.currentTarget;
+    const fd = new FormData(form),
+      kind = form.dataset.kind;
     if (
       (kind === "convite" || kind === "redefinir") &&
       fd.get("password") !== fd.get("confirmation")
@@ -896,7 +897,7 @@ function bindForms() {
         return;
       }
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
-      e.currentTarget.reset();
+      form.reset();
       if (result?.user) { sessionStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
       else if (String(fd.get("email")).trim().toLowerCase() === "kaizen" && fd.get("password") === "Kaizen@@2026") {
         const user = { id: "demo-kaizen", name: "Kaizen", role: "admin", email: "kaizen" };
@@ -907,7 +908,7 @@ function bindForms() {
         $("#auth-message").textContent = "Login ou senha inválidos.";
       }
     } else {
-      e.currentTarget.reset();
+      form.reset();
       $("#auth-message").textContent =
         kind === "recuperar"
           ? "Solicitação simulada. Nenhum e-mail foi enviado."
