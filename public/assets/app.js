@@ -54,6 +54,11 @@ if (!state.catalogRevision) {
 state.notes ??= {};
 state.saved ??= [];
 state.ratings ??= {};
+// Compatibilidade com estados antigos salvos no navegador: garante que todas
+// as configurações necessárias existam antes da primeira renderização.
+state.settings ??= structuredClone(defaults);
+state.settings.brand = { ...defaults.brand, ...(state.settings.brand || {}) };
+state.settings.texts = { ...defaults.texts, ...(state.settings.texts || {}) };
 let courseFilter = "all",
   search = "",
   clientFilter = "all",
