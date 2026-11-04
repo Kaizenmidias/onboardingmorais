@@ -608,7 +608,7 @@ function render() {
     bindForms();
     return;
   }
-  if (root === "admin" && storedUser?.role !== "admin") {
+  if (root === "admin" && !["admin", "office_admin", "agency_admin"].includes(storedUser?.role)) {
     location.hash = "/inicio";
     return;
   }
