@@ -1292,9 +1292,10 @@ document.addEventListener("click", (e) => {
   }
   if (action === "archive-course") {
     openModal(
-      "Remover trilha da demonstração?",
-      `<p>A trilha será removida apenas dos dados locais desta prévia. Você pode restaurar os dados iniciais nas configurações.</p><form>${modalFooter("Remover da prévia")}</form>`,
-      () => {
+      "Arquivar trilha?",
+      `<p>A trilha será arquivada e deixará de aparecer para os clientes.</p><form>${modalFooter("Arquivar trilha")}</form>`,
+      async () => {
+        await apiRequest("content.delete", { method:"POST", body:JSON.stringify({type:"course",id:/^\d+$/.test(String(id))?Number(id):0}) });
         state.courses = state.courses.filter((v) => v.id !== id);
         persist();
         modal.close();
