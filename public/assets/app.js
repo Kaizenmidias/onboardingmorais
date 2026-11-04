@@ -181,7 +181,8 @@ async function loadBackend() {
   }
   if (Array.isArray(data.clients)) {
     state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
-  }
+  } else state.clients = [];
+  if (!Array.isArray(data.media)) state.files = [];
   if (data.user && ['agency_admin','office_admin'].includes(data.user.role)) state.report = await apiRequest('reports.summary');
   persist();
   render();
