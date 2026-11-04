@@ -914,12 +914,12 @@ function bindForms() {
       } else {
         $("#auth-message").textContent = "Login ou senha inválidos.";
       }
+    } else if (kind === "recuperar") {
+      const result=await apiRequest("password.reset.request",{method:"POST",body:JSON.stringify({email:fd.get("email")})}); form.reset(); $("#auth-message").textContent=result?.ok?"Se o e-mail estiver cadastrado, enviaremos as instruções.":"Não foi possível solicitar a recuperação.";
+    } else if (kind === "redefinir") {
+      const token=new URLSearchParams(location.hash.split("?")[1]||"").get("token")||""; const result=await apiRequest("password.reset.complete",{method:"POST",body:JSON.stringify({token,password:fd.get("password")})}); if(result?.ok){form.reset(); location.hash="/login"; toast("Senha alterada com sucesso.");} else $("#auth-message").textContent=result?.error||"Link inválido ou expirado.";
     } else {
-      form.reset();
-      $("#auth-message").textContent =
-        kind === "recuperar"
-          ? "Solicitação simulada. Nenhum e-mail foi enviado."
-          : "Fluxo visual concluído. Nenhuma senha foi gravada.";
+      form.reset(); $("#auth-message").textContent="Defina sua senha pelo link recebido por e-mail.";
     }
   });
   $("#brand-form")?.addEventListener("submit", (e) => {
