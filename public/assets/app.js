@@ -159,6 +159,7 @@ function toast(message) {
 async function loadBackend() {
   const data = await apiRequest("bootstrap");
   if (!data) return;
+  window.__productionMode = true;
   if (data.settings) {
     for (const [key, value] of Object.entries(data.settings)) {
       const [group, name] = key.split(".", 2);
