@@ -9,6 +9,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax']);
     session_start();
 }
+// Garante tabelas opcionais em instalações já existentes sem exigir acesso SSH.
+try { db()->exec("CREATE TABLE IF NOT EXISTS lesson_notes (user_id BIGINT UNSIGNED NOT NULL, lesson_id BIGINT UNSIGNED NOT NULL, note_text LONGTEXT NOT NULL, updated_at DATETIME NOT NULL, PRIMARY KEY(user_id,lesson_id), CONSTRAINT fk_notes_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE, CONSTRAINT fk_notes_lesson FOREIGN KEY(lesson_id) REFERENCES lessons(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); db()->exec("CREATE TABLE IF NOT EXISTS saved_lessons (user_id BIGINT UNSIGNED NOT NULL, lesson_id BIGINT UNSIGNED NOT NULL, created_at DATETIME NOT NULL, PRIMARY KEY(user_id,lesson_id), CONSTRAINT fk_saved_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE, CONSTRAINT fk_saved_lesson FOREIGN KEY(lesson_id) REFERENCES lessons(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (Throwable $schemaError) { error_log($schemaError->getMessage()); }
 
 $action = $_GET['action'] ?? '';
 try {
