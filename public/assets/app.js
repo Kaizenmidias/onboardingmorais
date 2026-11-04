@@ -504,7 +504,7 @@ function adminCommunication() {
       "Recados e orientações",
       "Mantenha as informações importantes no caminho do cliente.",
     ) +
-    `<div class="help-layout"><section class="panel"><div class="section-title"><h2>Comunicado da página inicial</h2></div><form id="notice-form"><label>Título<input name="title" value="${esc(state.notices[0]?.title)}" required maxlength="100"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="600">${esc(state.notices[0]?.body)}</textarea></label><button class="btn btn-primary" type="submit">Salvar na prévia ${icon("check")}</button></form></section><section class="panel"><h2>E-mails do portal</h2>${["Convite de acesso", "Recuperação de senha", "Lembrete de jornada"].map((n, i) => `<div class="template-row"><span class="file-icon">${icon("mail")}</span><strong>${n}</strong><button class="icon-btn" data-action="email-preview" data-id="${i}" aria-label="Ver modelo de ${n}">${icon("eye")}</button></div>`).join("")}<p class="muted">Modelos visuais. O envio e a edição de templates serão conectados ao serviço de e-mail.</p></section></div>`
+    `<div class="help-layout"><section class="panel"><div class="section-title"><h2>Comunicado da página inicial</h2></div><form id="notice-form"><label>Título<input name="title" value="${esc(state.notices[0]?.title)}" required maxlength="100"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="600">${esc(state.notices[0]?.body)}</textarea></label><button class="btn btn-primary" type="submit">Salvar comunicado ${icon("check")}</button></form></section><section class="panel"><h2>Enviar notificação aos clientes</h2><form id="notification-form"><label>Destinatário<select name="client_id"><option value="0">Todos os clientes ativos</option>${state.clients.filter(c=>c.status==='active').map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.company)}</option>`).join("")}</select></label><label>Assunto<input name="subject" required maxlength="160"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="4000"></textarea></label><button class="btn btn-primary" type="submit">Enviar notificação ${icon("mail")}</button><p id="notification-status" class="form-note"></p></form></section></div>`
   );
 }
 function adminReports() {
@@ -946,6 +946,13 @@ function bindForms() {
     state.notices[0] = Object.fromEntries(new FormData(e.currentTarget));
     persist();
     toast("Comunicado atualizado na demonstração.");
+  });
+  $("#notification-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const status=$("#notification-status"); if(status) status.textContent="Enviando…";
+    const result=await apiRequest("notification.send", { method:"POST", body:JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))) });
+    if(status) status.textContent=result?.ok ? `${result.sent} notificação(ões) enviada(s).` : "Não foi possível enviar. Verifique a configuração de e-mail da hospedagem.";
+    if(result?.ok) e.currentTarget.reset();
   });
   $("#course-search")?.addEventListener("input", (e) => {
     search = e.target.value;
