@@ -1267,10 +1267,7 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (action === "invite") {
-    openModal(
-      "Convite de acesso",
-      `<p>Este é um fluxo demonstrativo. No sistema integrado, o cliente receberá um link de uso único para definir sua senha.</p>${link("/convite", "Visualizar tela do convite " + icon("arrow"), "btn btn-primary")}`,
-    );
+    openModal("Convite de acesso", `<p>O convite será enviado para o e-mail cadastrado do cliente.</p><form>${modalFooter("Enviar convite")}</form>`, async () => { const result=await apiRequest("invite.send",{method:"POST",body:JSON.stringify({client_id:/^\d+$/.test(String(id))?Number(id):0})}); modal.close(); toast(result?.ok?"Convite enviado.":(result?.error||"Não foi possível enviar o convite.")); });
     return;
   }
   if (action === "toggle-client") {
