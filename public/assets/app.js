@@ -1461,5 +1461,10 @@ window.addEventListener("pagehide", () => {
     persist();
   }
 });
-render();
-void loadBackend();
+try {
+  render();
+  void loadBackend();
+} catch (error) {
+  console.error("Falha ao inicializar o portal", error);
+  if (app) app.innerHTML = `<div class="boot"><p>Não foi possível carregar a área. Atualize a página e tente novamente.</p></div>`;
+}
