@@ -1051,7 +1051,7 @@
   margin-right: var(--syllabus-width);
 }
 .academy-theater .academy-topbar .brand-logo {
-  filter: brightness(0) invert(1);
+  filter: none;
   height: 44px;
   width: 145px;
 }
