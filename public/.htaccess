@@ -1,0 +1,11 @@
+Options -Indexes
+RewriteEngine On
+
+# Protege arquivos internos e mantém a entrada do portal disponível.
+RewriteRule ^(?:app|config|database|storage|\.git)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:\.env|composer\.(?:json|lock)|README|CHANGELOG)(?:\.|$) - [F,L,NC]
+
+# Permite URLs amigáveis do frontend sem interferir nos endpoints PHP.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
