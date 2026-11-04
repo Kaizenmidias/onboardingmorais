@@ -1132,6 +1132,7 @@ document.addEventListener("click", (e) => {
   if (action === "save-note") {
     state.notes[id] = $("#lesson-notes")?.value || "";
     persist();
+    void apiRequest("lesson.note", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,note:state.notes[id]}) });
     $("#notes-status").textContent = "Anotação salva neste navegador.";
     toast("Anotação salva nesta demonstração.");
     return;
@@ -1141,6 +1142,7 @@ document.addEventListener("click", (e) => {
       ? state.saved.filter((v) => v !== id)
       : [...state.saved, id];
     persist();
+    void apiRequest("lesson.save_toggle", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,saved:state.saved.includes(id)}) });
     render();
     return;
   }
