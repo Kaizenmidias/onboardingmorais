@@ -1,0 +1,19 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home3/morais87/academia.moraiscontabilidade.com/
+    - /bin/cp -R app $DEPLOYPATH
+    - /bin/cp -R assets $DEPLOYPATH
+    - /bin/cp -R config $DEPLOYPATH
+    - /bin/cp -R database $DEPLOYPATH
+    - /bin/cp -R storage $DEPLOYPATH
+    - /bin/cp -R .well-known $DEPLOYPATH
+    - /bin/cp -f .htaccess $DEPLOYPATH
+    - /bin/cp -f api.php $DEPLOYPATH
+    - /bin/cp -f index.php $DEPLOYPATH
+    - /bin/cp -f install.php $DEPLOYPATH
+    - /bin/cp -f media.php $DEPLOYPATH
+    - /bin/cp -f robots.txt $DEPLOYPATH
+    - /bin/cp -f upload.php $DEPLOYPATH
+    - /bin/cp -f 404.html $DEPLOYPATH
+    - /bin/cp -f 502.html $DEPLOYPATH
