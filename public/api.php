@@ -31,10 +31,12 @@ try {
         $courses = db()->query("SELECT id,title,slug,category,description,cover_image,landscape_image,sort_order,status,sequence_required FROM courses WHERE status <> 'archived' ORDER BY sort_order,id")->fetchAll();
         foreach ($courses as &$course) { $s=db()->prepare("SELECT m.id,m.title,m.description,m.sort_order,m.status,l.id lesson_id,l.title lesson_title,l.body,l.duration_seconds,l.media_id,l.sort_order lesson_order,l.status lesson_status FROM modules m LEFT JOIN lessons l ON l.module_id=m.id AND l.status <> 'archived' WHERE m.course_id=? AND m.status <> 'archived' ORDER BY m.sort_order,m.id,l.sort_order,l.id"); $s->execute([$course['id']]); $mods=[]; foreach($s as $r){$mid=(int)$r['id']; if(!isset($mods[$mid]))$mods[$mid]=['id'=>$mid,'title'=>$r['title'],'description'=>$r['description'],'lessons'=>[]]; if($r['lesson_id'])$mods[$mid]['lessons'][]=['id'=>(int)$r['lesson_id'],'title'=>$r['lesson_title'],'body'=>$r['body'],'duration_seconds'=>(int)$r['duration_seconds'],'media_id'=>$r['media_id'] ? (string)$r['media_id'] : null];} $course['modules']=array_values($mods); }
         $media = [];
+        $clients = [];
         if ($user && in_array($user['role'], ['agency_admin','office_admin'], true)) {
             $media = db()->query("SELECT id,original_name,mime_type,file_size,status,created_at FROM media_assets WHERE status='ready' ORDER BY created_at DESC,id DESC")->fetchAll();
+            $clients = db()->query("SELECT id,name,company,email,cnpj,phone,whatsapp,status,expires_at,last_access_at FROM clients ORDER BY id DESC")->fetchAll();
         }
-        json_response(['user'=>$user,'settings'=>$out,'courses'=>$courses,'media'=>$media,'csrf'=>csrf_token()]);
+        json_response(['user'=>$user,'settings'=>$out,'courses'=>$courses,'clients'=>$clients,'media'=>$media,'csrf'=>csrf_token()]);
     }
     if ($action === 'setting') {
         $user=admin_user(); require_method('POST'); check_csrf(); $input=json_input(); $key=trim((string)($input['key']??'')); if(!preg_match('/^[a-z][a-z0-9_.-]{1,119}$/',$key))json_response(['error'=>'Chave inválida.'],422); $value=$input['value']??''; $type=is_array($value)||is_object($value)?'json':'string'; $stored=$type==='json'?json_encode($value,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES):(string)$value; db()->prepare('INSERT INTO settings(setting_key,setting_value,value_type,updated_at,updated_by) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),value_type=VALUES(value_type),updated_at=VALUES(updated_at),updated_by=VALUES(updated_by)')->execute([$key,$stored,$type,now(),$user['id']]); audit($user['id'],'update_setting','setting',$key); json_response(['ok'=>true,'key'=>$key,'value'=>$value]);

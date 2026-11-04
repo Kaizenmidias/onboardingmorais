@@ -172,6 +172,9 @@ async function loadBackend() {
   if (Array.isArray(data.media)) {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
   }
+  if (Array.isArray(data.clients)) {
+    state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
+  }
   persist();
   render();
 }
