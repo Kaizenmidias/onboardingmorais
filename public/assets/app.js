@@ -166,8 +166,11 @@ async function loadBackend() {
       if (group === "texts" && name) state.settings.texts[name] = value;
     }
   }
-  if (Array.isArray(data.courses) && data.courses.length) {
+  if (Array.isArray(data.courses)) {
     state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
+  }
+  if (Array.isArray(data.media)) {
+    state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
   }
   persist();
   render();
