@@ -14,6 +14,6 @@ if ($user['role'] === 'client') {
   $check->execute([$lessonId,$id]);
   if (!$check->fetchColumn()) { http_response_code(403); exit('Acesso negado.'); }
 }
-$path=rtrim($config['app']['upload_dir'],'/\\').DIRECTORY_SEPARATOR.$asset['storage_key'];
+$path=APP_ROOT.'/storage/uploads/'.$asset['storage_key'];
 if(!is_file($path)){http_response_code(404);exit('Arquivo indisponível.');}
 header('Content-Type: '.($asset['mime_type']?:'application/octet-stream'));header('Content-Length: '.filesize($path));header('Content-Disposition: inline; filename="'.rawurlencode($asset['original_name']).'"');header('X-Content-Type-Options: nosniff');readfile($path);

@@ -3,10 +3,15 @@ declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 if (!is_file(APP_ROOT . '/config/config.php')) json_response(['error'=>'Instalação pendente.'],503);
 $config=app_config();if(session_status()!==PHP_SESSION_ACTIVE){session_name($config['app']['session_name']??'onboarding_session');session_start();} $user=require_user(['agency_admin','office_admin']); check_csrf();
-$action=$_GET['action']??'start'; $dir=rtrim($config['app']['upload_dir'],'/\\'); if(!is_dir($dir))mkdir($dir,0750,true);
+$action=$_GET['action']??'start';
+// Mantém os uploads dentro da instalação atual, evitando caminhos absolutos
+// antigos quando o portal é movido para outro servidor.
+$dir=APP_ROOT.'/storage/uploads';
+if(!is_dir($dir))mkdir($dir,0775,true);
+if(!is_writable($dir))@chmod($dir,0775);
 try{
  if($action==='start'){require_method('POST');$i=json_input();$name=trim((string)($i['name']??''));$size=(int)($i['size']??0);$mime=(string)($i['mime']??'application/octet-stream');if(!$name||$size<1||$size>10737418240)json_response(['error'=>'Arquivo inválido ou maior que 10 GiB.'],422);if(!preg_match('/\.(mp4|webm|mov|m4v)$/i',$name))json_response(['error'=>'Formato permitido: MP4, WebM, MOV ou M4V.'],422);$id=vsprintf('%s-%s-%s-%s-%s',str_split(bin2hex(random_bytes(16)),4));$key=$id.'.part';db()->prepare('INSERT INTO media_assets(id,original_name,storage_key,mime_type,file_size,status,created_by,created_at,updated_at)VALUES(?,?,?,?,?,?,?,?,?)')->execute([$id,$name,$key,$mime,$size,'uploading',$user['id'],now(),now()]);if(!file_put_contents($dir.'/'.$key,'',LOCK_EX))throw new RuntimeException('Sem permissão de escrita.');json_response(['id'=>$id,'offset'=>0,'chunk_size'=>8388608]);}
  if($action==='chunk'){require_method('POST');$offset=max(0,(int)($_SERVER['HTTP_X_UPLOAD_OFFSET']??0));$s=db()->prepare('SELECT * FROM media_assets WHERE id=? AND status=?');$s->execute([$id,'uploading']);$asset=$s->fetch();if(!$asset)json_response(['error'=>'Upload não encontrado.'],404);$path=$dir.'/'.$asset['storage_key'];$in=fopen('php://input','rb');$out=fopen($path,'c+b');if(!$in||!$out)throw new RuntimeException('Não foi possível abrir o arquivo.');fseek($out,$offset);stream_copy_to_stream($in,$out);fclose($in);fclose($out);$received=filesize($path);if($received>$asset['file_size']){unlink($path);db()->prepare('UPDATE media_assets SET status=? WHERE id=?')->execute(['failed',$id]);json_response(['error'=>'Tamanho recebido excede o informado.'],422);}if($received===$asset['file_size']){$hash=hash_file('sha256',$path);$final=$id;rename($path,$dir.'/'.$final);db()->prepare('UPDATE media_assets SET storage_key=?,checksum=?,status=?,updated_at=? WHERE id=?')->execute([$final,$hash,'ready',now(),$id]);audit($user['id'],'upload_media','media',$id);json_response(['id'=>$id,'offset'=>$received,'status'=>'ready','url'=>'media.php?id='.$id]);}json_response(['id'=>$id,'offset'=>$received,'status'=>'uploading']);}
  if($action==='cancel'){require_method('POST');$s=db()->prepare('SELECT storage_key FROM media_assets WHERE id=? AND created_by=?');$s->execute([$id,$user['id']]);$asset=$s->fetch();if($asset){$path=$dir.'/'.$asset['storage_key'];if(is_file($path))unlink($path);db()->prepare('UPDATE media_assets SET status=? WHERE id=?')->execute(['deleted',$id]);}json_response(['ok'=>true]);}
  json_response(['error'=>'Ação inválida.'],404);
-}catch(Throwable $e){error_log($e->getMessage());json_response(['error'=>'Falha no upload: '.$e->getMessage()],500);}
+}catch(Throwable $e){error_log($e->getMessage());json_response(['error'=>'Falha no upload.'],500);}
