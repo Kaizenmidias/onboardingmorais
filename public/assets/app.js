@@ -1353,6 +1353,7 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (action === "remove-file") {
+    if (/^[a-f0-9-]{36}$/i.test(String(id))) await apiRequest("media.delete", { method:"POST", body:JSON.stringify({id}) });
     const url = mediaUrls.get(id);
     if (url) URL.revokeObjectURL(url);
     mediaUrls.delete(id);
