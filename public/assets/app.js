@@ -23,6 +23,7 @@ const fresh = () => ({
   saved: [],
   ratings: {},
   files: [],
+  report: null,
   notices: [
     {
       title: "Seu onboarding, no seu ritmo",
@@ -176,6 +177,7 @@ async function loadBackend() {
   if (Array.isArray(data.clients)) {
     state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
   }
+  if (data.user && ['agency_admin','office_admin'].includes(data.user.role)) state.report = await apiRequest('reports.summary');
   persist();
   render();
 }
@@ -516,7 +518,7 @@ function adminReports() {
       "Um olhar sobre cada etapa da experiência dos seus clientes.",
       `<button class="btn btn-primary" data-action="export-clients">${icon("download")} Exportar CSV</button>`,
     ) +
-    `<div class="stats-grid">${statsCard("users", state.clients.length, "Clientes na análise", "Base demonstrativa")}${statsCard("trophy", activeCourses().filter((c) => progress(c) === 100).length, "Trilhas concluídas", "Cliente em demonstração", "orange")}${statsCard("clock", "14 dias", "Critério de inatividade", "Parâmetro proposto")}${statsCard("mail", state.clients.filter((c) => c.status === "invited").length, "Convites pendentes", "Aguardando ativação", "green")}</div><section class="panel"><div class="section-title"><h2>Progresso individual</h2>${badge("Dados ilustrativos")}</div>${clientTable()}</section><div class="inline-note">${icon("help")} A exportação contém somente os dados fictícios exibidos nesta demonstração.</div>`
+    `<div class="stats-grid">${statsCard("users", state.report?.clients ?? state.clients.length, "Clientes cadastrados", "Banco de dados")}${statsCard("trophy", state.report?.published_courses ?? activeCourses().length, "Trilhas publicadas", "Conteúdo ativo", "orange")}${statsCard("play", state.report?.published_lessons ?? 0, "Aulas publicadas", "Conteúdo disponível")}${statsCard("mail", state.clients.filter((c) => c.status === "invited").length, "Convites pendentes", "Aguardando ativação", "green")}</div><section class="panel"><div class="section-title"><h2>Progresso individual</h2></div>${clientTable()}</section>`
   );
 }
 function customization() {
