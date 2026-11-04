@@ -680,6 +680,10 @@ function render() {
       }
     }
     app.innerHTML = shell(content, section);
+    if (window.__productionMode) {
+      app.querySelectorAll('.demo-bar').forEach((el) => el.remove());
+      app.querySelectorAll('.academy-footer small').forEach((el) => el.remove());
+    }
   }
   bindForms();
   bindVideo();
