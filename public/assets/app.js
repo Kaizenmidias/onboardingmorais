@@ -1037,7 +1037,7 @@ function bindForms() {
       const id = uid("arquivo");
       state.files.push({ id, name: f.name, size: f.size, type: f.type });
       mediaUrls.set(id, URL.createObjectURL(f));
-      if (/\.(mp4|webm|mov|m4v)$/i.test(f.name)) uploadVideo(f);
+      void uploadVideo(f);
     }
     persist();
     render();
@@ -1061,7 +1061,7 @@ async function uploadVideo(file) {
       return null;
     }
   }
-  toast("Vídeo enviado para a biblioteca.");
+  toast("Arquivo enviado para a biblioteca.");
   return { id: created.id, url: `media.php?id=${encodeURIComponent(created.id)}` };
 }
 function bindVideo() {
