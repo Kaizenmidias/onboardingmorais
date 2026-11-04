@@ -1,0 +1,42 @@
+# Segredos e configuração de cada instalação
+.env
+.env.*
+!.env.example
+/config/local.php
+/config/secrets.php
+/config/install-secret.php
+/private/
+*.pem
+*.key
+
+# Dependências e artefatos gerados no desenvolvimento
+/vendor/
+/node_modules/
+/dist/
+/build/
+/coverage/
+/artifacts/
+.phpunit.cache/
+
+# Dados e estado de execução
+/storage/
+/backups/
+/uploads/
+/public/uploads/
+/public/_media_internal/
+*.sql
+!/database/migrations/*.sql
+!/database/migrations/**/*.sql
+*.sql.gz
+*.zip
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.log
+
+# Sistema e editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
