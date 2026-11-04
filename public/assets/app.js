@@ -492,9 +492,9 @@ function adminMedia() {
       "TUDO EM SEU LUGAR",
       "Biblioteca de mídia",
       "Uma prévia dos arquivos que vão compor suas aulas.",
-      `<label class="btn btn-primary file-button">${icon("upload")} Selecionar arquivos<input id="media-input" type="file" multiple accept="video/mp4,video/webm,image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt"></label>`,
+      `<label class="btn btn-primary file-button">${icon("upload")} Selecionar arquivos<input id="media-input" type="file" multiple accept="video/mp4,video/webm,video/quicktime,video/x-m4v,image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt"></label>`,
     ) +
-    `<div class="upload-zone">${icon("upload")}<h2>Seus conteúdos começam aqui.</h2><p>Selecione vídeos, imagens ou materiais para testar a biblioteca.</p><small>Nesta etapa, os arquivos ficam apenas na sessão do navegador. Não há envio ao servidor.</small></div><section class="panel"><div class="section-title"><h2>Arquivos selecionados</h2>${badge(state.files.length + " arquivos")}</div>${state.files.length ? state.files.map((f) => `<div class="material-row"><span class="file-icon">${icon(f.type.startsWith("video") ? "play" : "file")}</span><div><strong>${esc(f.name)}</strong><small>${formatBytes(f.size)} • ${mediaUrls.has(f.id) ? "Disponível nesta sessão" : "Metadados salvos; selecione novamente para abrir"}</small></div><button class="icon-btn" data-action="open-file" data-id="${f.id}" aria-label="Visualizar ${esc(f.name)}">${icon("eye")}</button><button class="icon-btn" data-action="remove-file" data-id="${f.id}" aria-label="Remover ${esc(f.name)}">${icon("trash")}</button></div>`).join("") : empty("Sua biblioteca está pronta para começar", "Os arquivos selecionados aparecerão aqui.")}</section><div class="inline-note">${icon("shield")} O upload retomável acima de 2 GB e a entrega privada serão implementados após aprovação visual.</div>`
+    `<div class="upload-zone">${icon("upload")}<h2>Biblioteca de conteúdos</h2><p>Envie vídeos e materiais de apoio para reutilizá-los nas aulas.</p><small>Os arquivos enviados ficam disponíveis para seleção na criação das aulas.</small></div><section class="panel"><div class="section-title"><h2>Arquivos da biblioteca</h2>${badge(state.files.length + " arquivos")}</div>${state.files.length ? state.files.map((f) => `<div class="material-row"><span class="file-icon">${icon(f.type.startsWith("video") ? "play" : "file")}</span><div><strong>${esc(f.name)}</strong><small>${formatBytes(f.size)} • ${f.status === "ready" ? "Disponível no servidor" : "Processando"}</small></div><button class="icon-btn" data-action="open-file" data-id="${f.id}" aria-label="Visualizar ${esc(f.name)}">${icon("eye")}</button><button class="icon-btn" data-action="remove-file" data-id="${f.id}" aria-label="Remover ${esc(f.name)}">${icon("trash")}</button></div>`).join("") : empty("Sua biblioteca está vazia", "Envie o primeiro vídeo ou material de apoio.")}</section>`
   );
 }
 function adminCommunication() {
@@ -1009,7 +1009,7 @@ function bindForms() {
   $("#media-input")?.addEventListener("change", (e) => {
     for (const f of e.target.files) {
       const allowed =
-        /\.(mp4|webm|png|jpe?g|webp|pdf|csv|xlsx|docx|vtt)$/i.test(f.name);
+        /\.(mp4|webm|mov|m4v|png|jpe?g|webp|pdf|csv|xlsx|docx|vtt)$/i.test(f.name);
       if (!allowed) {
         toast("Arquivo não aceito nesta prévia: " + f.name);
         continue;
