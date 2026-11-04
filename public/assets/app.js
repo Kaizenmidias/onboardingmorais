@@ -1101,7 +1101,7 @@ modal.addEventListener("click", (e) => {
       modal.close();
   }
 });
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   const el = e.target.closest("[data-action]");
   if (!el) return;
   e.preventDefault();
