@@ -690,6 +690,11 @@ function render() {
     if (window.__productionMode) {
       app.querySelectorAll('.demo-bar').forEach((el) => el.remove());
       app.querySelectorAll('.academy-footer small').forEach((el) => el.remove());
+      app.querySelectorAll('.academy-play-button[data-action="preview-video"]').forEach((el) => {
+        el.remove();
+        const note = el.parentElement?.querySelector('small');
+        if (note) note.textContent = 'O vídeo desta aula ainda não foi disponibilizado.';
+      });
     }
   }
   bindForms();
@@ -923,12 +928,7 @@ function bindForms() {
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
       form.reset();
       if (result?.user) { localStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
-      else if (String(fd.get("email")).trim().toLowerCase() === "kaizen" && fd.get("password") === "Kaizen@@2026") {
-        const user = { id: "demo-kaizen", name: "Kaizen", role: "admin", email: "kaizen" };
-        localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-        location.hash = "/admin";
-        toast("Acesso de teste realizado.");
-      } else {
+      else {
         $("#auth-message").textContent = "Login ou senha inválidos.";
       }
     } else if (kind === "recuperar") {
