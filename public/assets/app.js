@@ -794,7 +794,7 @@ function openMediaPicker({ accept = "all", multiple = false, onSelect }) {
   openModal("Inserir mídia", `<form class="media-picker"><div class="media-picker-toolbar"><label class="btn btn-primary file-button">${icon("upload")} Enviar arquivos<input id="media-picker-input" type="file" multiple accept="${accepts}"></label><p class="form-note">Arraste arquivos para a área abaixo ou selecione na biblioteca.</p></div><div id="media-picker-drop" class="media-picker-drop" tabindex="0" role="button" aria-label="Arraste arquivos para enviar">${icon("upload")}<strong>Solte os arquivos aqui</strong><span>ou clique para selecionar</span></div><div id="media-picker-progress" class="media-picker-progress" aria-live="polite"></div><div class="media-picker-grid" id="media-picker-grid">${list()}</div>${modalFooter(multiple ? "Usar selecionados" : "Usar arquivo")}</form>`, async () => {
     const files = state.files.filter((file) => selected.includes(String(file.id)));
     modal.close();
-    if (files.length) onSelect?.(multiple ? files : files.slice(0, 1));
+    if (files.length) setTimeout(() => onSelect?.(multiple ? files : files.slice(0, 1)), 0);
   });
   const refresh = () => { const grid = modal.querySelector("#media-picker-grid"); if (grid) grid.innerHTML = list(); };
   const addFiles = async (files) => {
