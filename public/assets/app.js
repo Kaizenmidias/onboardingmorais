@@ -1126,6 +1126,7 @@ document.addEventListener("click", async (e) => {
   e.preventDefault();
   const { action, id, direction } = el.dataset;
   if (action === "logout") {
+    await apiRequest("logout", { method: "POST", body: "{}" });
     localStorage.removeItem(AUTH_KEY);
     location.hash = "/login";
     return;
