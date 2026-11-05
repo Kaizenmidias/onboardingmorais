@@ -184,6 +184,7 @@ async function loadBackend() {
   if (Array.isArray(data.courses)) {
     state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), coverImage: course.cover_image || course.coverImage || "", landscapeImage: course.landscape_image || course.landscapeImage || "", sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
   }
+  if (data.notes && typeof data.notes === "object") state.notes = data.notes;
   if (Array.isArray(data.media)) {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
   }
@@ -291,6 +292,9 @@ function shell(content, section = "Visão geral") {
         ["progresso", "chart", text("navProgress")],
         ["ajuda", "help", text("navHelp")],
       ];
+  const current = window.__currentUser || (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
+  const displayName = admin ? "Equipe Morais" : (current?.name || "Cliente");
+  const displayCompany = admin ? "Administrador" : (current?.company || "Acesso do cliente");
   return `<div class="demo-bar"><span><i></i> Prévia visual <span class="demo-detail">· Dados ilustrativos, salvos neste navegador</span></span><a href="#/${admin ? "inicio" : "admin"}">${icon(admin ? "eye" : "settings")} ${admin ? "Ver área do cliente" : "Conhecer painel admin"} ${icon("arrow")}</a></div>
   <div class="app-shell ${admin ? "admin-shell" : ""}"><button class="sidebar-overlay ${menuOpen ? "show" : ""}" data-action="menu" aria-label="Fechar menu"></button>
   <aside class="sidebar ${menuOpen ? "open" : ""}" aria-label="Navegação principal" ${hiddenMobileMenu ? 'inert aria-hidden="true"' : ""}><a href="#/${admin ? "admin" : "inicio"}" class="brand">${logo()}<span>${esc(admin ? "Painel administrativo" : brand().portal)}</span></a><div class="sidebar-label">${admin ? "GERENCIAMENTO" : "SEU ESPAÇO"}</div><nav>${nav
@@ -301,7 +305,7 @@ function shell(content, section = "Visão geral") {
     .join("")}</nav>
   ${admin ? `<div class="sidebar-note">${icon("shield")}<strong>Sua marca. Seu portal.</strong><p>Uma experiência exclusiva para os clientes do seu escritório.</p></div>` : `<div class="sidebar-help"><span class="help-symbol">${icon("message")}</span><strong>Estamos com você.</strong><p>Precisa de uma orientação?</p>${contact("text-link")}</div>`}
   <div class="sidebar-bottom"><a href="#/perfil" class="nav-link">${icon("user")}Minha conta</a><a href="#/login" data-action="logout" class="nav-link">${icon("logout")}Sair</a><small>© 2026 ${esc(brand().name)}</small></div></aside>
-  <div class="workspace"><header class="topbar"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Abrir menu" aria-expanded="${menuOpen}">${icon("menu")}</button><div class="breadcrumbs">${admin ? "Administração" : "Área do cliente"} ${icon("chevron")} <span>${esc(section)}</span></div><div class="topbar-actions">${admin ? `<a class="client-return-link" href="#/inicio">${icon("eye")} Área do cliente ${icon("arrow")}</a>` : ""}<span class="secure-label">${icon("shield")} Acesso exclusivo</span><button class="icon-btn notification" data-action="notifications" aria-label="Ver comunicados">${icon("bell")}<i></i></button><a class="user-control" href="#/perfil">${avatar(admin ? "Equipe Morais" : "Mariana Oliveira")}<span><strong>${admin ? "Equipe Morais" : "Mariana Oliveira"}</strong><small>${admin ? "Administrador" : "Empresa Exemplo"}</small></span>${icon("down")}</a></div></header>
+  <div class="workspace"><header class="topbar"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Abrir menu" aria-expanded="${menuOpen}">${icon("menu")}</button><div class="breadcrumbs">${admin ? "Administração" : "Área do cliente"} ${icon("chevron")} <span>${esc(section)}</span></div><div class="topbar-actions">${admin ? `<a class="client-return-link" href="#/inicio">${icon("eye")} Área do cliente ${icon("arrow")}</a>` : ""}<span class="secure-label">${icon("shield")} Acesso exclusivo</span><button class="icon-btn notification" data-action="notifications" aria-label="Ver comunicados">${icon("bell")}<i></i></button><a class="user-control" href="#/perfil">${avatar(displayName)}<span><strong>${esc(displayName)}</strong><small>${esc(displayCompany)}</small></span>${icon("down")}</a></div></header>
   <main id="main-content" tabindex="-1" class="main-content">${content}</main><footer class="footer"><span>Conhecimento e proximidade em cada etapa.</span><a href="#/privacidade">Privacidade e termos ${icon("shield")}</a></footer></div></div>`;
 }
 function courseCover(c, small = false) {
@@ -1266,8 +1270,9 @@ document.addEventListener("click", async (e) => {
     state.notes[id] = $("#lesson-notes")?.value || "";
     persist();
     void apiRequest("lesson.note", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,note:state.notes[id]}) });
-    $("#notes-status").textContent = "Anotação salva neste navegador.";
+    $("#notes-status").textContent = "Anotação salva no seu acesso.";
     toast("Anotação salva no portal.");
+    render();
     return;
   }
   if (action === "save-lesson") {

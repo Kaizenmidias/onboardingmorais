@@ -2358,7 +2358,8 @@ tr:last-child td {
   margin-bottom: 25px;
 }
 .media-picker {
-  min-width: min(860px, 78vw);
+  width: 100%;
+  min-width: 0;
 }
 .media-picker-toolbar {
   display: flex;
@@ -2384,7 +2385,7 @@ tr:last-child td {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
-  max-height: 340px;
+  max-height: min(52vh, 620px);
   overflow: auto;
   padding: 2px;
 }
@@ -2692,6 +2693,14 @@ dialog {
 dialog::backdrop {
   background: #0c162b70;
   backdrop-filter: blur(4px);
+}
+dialog:has(.media-picker) {
+  width: min(1400px, calc(100vw - 48px));
+  max-width: none;
+  max-height: 92vh;
+}
+dialog:has(.media-picker) .modal-body {
+  min-height: min(70vh, 720px);
 }
 .modal-header {
   display: flex;

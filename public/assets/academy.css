@@ -1408,6 +1408,17 @@
   font-size: 10px;
   min-height: 37px;
 }
+.saved-note {
+  margin: 14px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+.saved-note strong { display: block; margin-bottom: 6px; }
+.saved-note p { margin: 0; white-space: normal; }
+.empty-note { border-style: dashed; opacity: .82; }
 .classroom-course-credit {
   display: flex;
   align-items: center;

@@ -46,9 +46,9 @@ try {
     if ($action === 'login') {
         require_method('POST'); check_csrf(); $input = json_input();
         $email = strtolower(trim((string)($input['email'] ?? ''))); $password = (string)($input['password'] ?? '');
-        $s = db()->prepare("SELECT u.id,u.name,u.email,u.password_hash,u.role,u.status,u.client_id,u.auth_version FROM users u LEFT JOIN clients c ON c.id=u.client_id WHERE u.email=? AND u.status='active' AND (u.role<>'client' OR (c.status='active' AND (c.expires_at IS NULL OR c.expires_at>=CURDATE()))) LIMIT 1"); $s->execute([$email]); $user = $s->fetch();
+        $s = db()->prepare("SELECT u.id,u.name,u.email,c.company,u.password_hash,u.role,u.status,u.client_id,u.auth_version FROM users u LEFT JOIN clients c ON c.id=u.client_id WHERE u.email=? AND u.status='active' AND (u.role<>'client' OR (c.status='active' AND (c.expires_at IS NULL OR c.expires_at>=CURDATE()))) LIMIT 1"); $s->execute([$email]); $user = $s->fetch();
         if (!$user || !$user['password_hash'] || !password_verify($password, $user['password_hash']) || $user['status'] !== 'active') json_response(['error' => 'E-mail ou senha inválidos.'], 422);
-        session_regenerate_id(true); $_SESSION['user'] = ['id'=>(int)$user['id'],'name'=>$user['name'],'email'=>$user['email'],'role'=>$user['role'],'client_id'=>$user['client_id'] ? (int)$user['client_id'] : null,'auth_version'=>(int)$user['auth_version']];
+        session_regenerate_id(true); $_SESSION['user'] = ['id'=>(int)$user['id'],'name'=>$user['name'],'email'=>$user['email'],'company'=>$user['company'] ?? null,'role'=>$user['role'],'client_id'=>$user['client_id'] ? (int)$user['client_id'] : null,'auth_version'=>(int)$user['auth_version']];
         db()->prepare('UPDATE users SET last_login_at=?,updated_at=? WHERE id=?')->execute([now(),now(),$user['id']]); audit((int)$user['id'],'login','user',$user['id']);
         json_response(['user'=>$_SESSION['user'],'csrf'=>csrf_token()]);
     }
@@ -78,7 +78,9 @@ try {
         if ($user && in_array($user['role'], ['agency_admin','office_admin'], true)) {
             $clients = db()->query("SELECT id,name,company,email,cnpj,phone,whatsapp,status,expires_at,NULL AS last_access_at FROM clients ORDER BY id DESC")->fetchAll();
         }
-        json_response(['user'=>$user,'settings'=>$out,'courses'=>$courses,'clients'=>$clients,'media'=>$media,'csrf'=>csrf_token()]);
+        $notes = [];
+        if ($user) { try { $ns = db()->prepare('SELECT lesson_id,note_text FROM lesson_notes WHERE user_id=?'); $ns->execute([(int)$user['id']]); foreach ($ns as $note) $notes[(string)$note['lesson_id']] = $note['note_text']; } catch (Throwable $ignored) {} }
+        json_response(['user'=>$user,'settings'=>$out,'courses'=>$courses,'clients'=>$clients,'media'=>$media,'notes'=>$notes,'csrf'=>csrf_token()]);
     }
     if ($action === 'setting') {
         $user=admin_user(); require_method('POST'); check_csrf(); $input=json_input(); $key=trim((string)($input['key']??'')); if(!preg_match('/^[a-z][a-z0-9_.-]{1,119}$/',$key))json_response(['error'=>'Chave inválida.'],422); $value=$input['value']??''; $type=is_array($value)||is_object($value)?'json':'string'; $stored=$type==='json'?json_encode($value,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES):(string)$value; db()->prepare('INSERT INTO settings(setting_key,setting_value,value_type,updated_at,updated_by) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),value_type=VALUES(value_type),updated_at=VALUES(updated_at),updated_by=VALUES(updated_by)')->execute([$key,$stored,$type,now(),$user['id']]); audit($user['id'],'update_setting','setting',$key); json_response(['ok'=>true,'key'=>$key,'value'=>$value]);
