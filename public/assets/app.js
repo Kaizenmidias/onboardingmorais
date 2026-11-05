@@ -166,7 +166,10 @@ async function loadBackend() {
   const data = await apiRequest("bootstrap");
   if (!data) { render(); return; }
   window.__productionMode = true;
-  if (data.user) localStorage.setItem(AUTH_KEY, JSON.stringify(data.user));
+  if (data.user) {
+    window.__currentUser = data.user;
+    localStorage.setItem(AUTH_KEY, JSON.stringify(data.user));
+  }
   else {
     localStorage.removeItem(AUTH_KEY);
     if (!['login', 'recuperar', 'convite', 'redefinir'].includes(route()[0])) location.hash = '/login';
@@ -700,7 +703,7 @@ function render() {
         const note = el.parentElement?.querySelector('small');
         if (note) note.textContent = 'O vídeo desta aula ainda não foi disponibilizado.';
       });
-      const currentRole = (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null')?.role || ''; } catch { return ''; } })();
+      const currentRole = window.__currentUser?.role || (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null')?.role || ''; } catch { return ''; } })();
       if (['admin', 'office_admin', 'agency_admin'].includes(currentRole)) {
         const topbar = app.querySelector('.academy-topbar');
         if (topbar && !topbar.querySelector('.academy-admin-link')) topbar.insertAdjacentHTML('beforeend', '<a class="academy-profile academy-admin-link" href="#/admin">Painel administrativo</a>');
@@ -937,7 +940,7 @@ function bindForms() {
       }
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
       form.reset();
-      if (result?.user) { localStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
+      if (result?.user) { window.__currentUser = result.user; localStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
       else {
         $("#auth-message").textContent = "Login ou senha inválidos.";
       }
