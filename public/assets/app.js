@@ -1040,9 +1040,17 @@ function bindForms() {
         continue;
       }
       const id = uid("arquivo");
-      state.files.push({ id, name: f.name, size: f.size, type: f.type });
+      const localFile = { id, name: f.name, size: f.size, type: f.type, status: "uploading" };
+      state.files.push(localFile);
       mediaUrls.set(id, URL.createObjectURL(f));
-      void uploadVideo(f);
+      void uploadVideo(f).then((result) => {
+        if (result?.id) {
+          Object.assign(localFile, { id: result.id, status: "ready" });
+          mediaUrls.set(result.id, mediaUrls.get(id));
+          persist();
+          render();
+        }
+      });
     }
     persist();
     render();
