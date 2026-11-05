@@ -600,13 +600,16 @@ function operations() {
   );
 }
 function profilePage() {
+  const user = window.__currentUser || (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
+  const profileName = user?.name || (isAdmin() ? "Equipe Morais" : "Cliente");
+  const profileEmail = user?.email || "";
   return (
     heading(
       "SEU ESPAÇO",
       "Minha conta",
       "Informações do acesso demonstrativo.",
     ) +
-    `<section class="panel profile-panel"><div class="profile-top">${avatar(isAdmin() ? "Equipe Morais" : "Mariana Oliveira")}<div><h2>Mariana Oliveira</h2><p>Empresa Exemplo</p></div>${badge("Perfil demonstrativo")}</div><dl class="data-grid"><div><dt>E-mail</dt><dd>mariana@example.com</dd></div><div><dt>Tipo de acesso</dt><dd>Um acesso por empresa</dd></div><div><dt>Escritório responsável</dt><dd>${esc(brand().name)}</dd></div><div><dt>Atualizações cadastrais</dt><dd>Solicite à equipe do escritório.</dd></div></dl><div class="row-actions"><a class="btn btn-secondary" href="#/redefinir">Visualizar troca de senha</a>${contact("btn btn-dark")}</div></section>`
+    `<section class="panel profile-panel"><div class="profile-top">${avatar(profileName)}<div><h2>${esc(profileName)}</h2><p>${esc(user?.company || (isAdmin() ? "Administrador" : "Cliente"))}</p></div>${badge(isAdmin() ? "Administrador" : "Acesso ativo")}</div><dl class="data-grid"><div><dt>E-mail</dt><dd>${esc(profileEmail)}</dd></div><div><dt>Tipo de acesso</dt><dd>${isAdmin() ? "Administrador" : "Um acesso por empresa"}</dd></div><div><dt>Escritório responsável</dt><dd>${esc(brand().name)}</dd></div><div><dt>Atualizações cadastrais</dt><dd>Solicite à equipe do escritório.</dd></div></dl><div class="row-actions"><a class="btn btn-secondary" href="#/redefinir">Alterar senha</a>${contact("btn btn-dark")}</div></section>`
   );
 }
 const notFound = () =>
