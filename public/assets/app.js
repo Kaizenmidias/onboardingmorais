@@ -164,8 +164,13 @@ function toast(message) {
 }
 async function loadBackend() {
   const data = await apiRequest("bootstrap");
-  if (!data) return;
+  if (!data) { render(); return; }
   window.__productionMode = true;
+  if (data.user) localStorage.setItem(AUTH_KEY, JSON.stringify(data.user));
+  else {
+    localStorage.removeItem(AUTH_KEY);
+    if (!['login', 'recuperar', 'convite', 'redefinir'].includes(route()[0])) location.hash = '/login';
+  }
   if (data.settings) {
     for (const [key, value] of Object.entries(data.settings)) {
       const [group, name] = key.split(".", 2);
@@ -1488,7 +1493,7 @@ window.addEventListener("pagehide", () => {
   }
 });
 try {
-  render();
+  app.innerHTML = '<div class="boot"><img src="assets/brand/morais-logo.png" width="174" height="52" alt="Morais Contabilidade"><p>Preparando sua área…</p></div>';
   void loadBackend();
 } catch (error) {
   console.error("Falha ao inicializar o portal", error);
