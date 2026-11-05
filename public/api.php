@@ -20,7 +20,7 @@ try {
     if ($action === 'login') {
         require_method('POST'); check_csrf(); $input = json_input();
         $email = strtolower(trim((string)($input['email'] ?? ''))); $password = (string)($input['password'] ?? '');
-        $s = db()->prepare('SELECT id,name,email,password_hash,role,status,client_id,auth_version FROM users WHERE email=? LIMIT 1'); $s->execute([$email]); $user = $s->fetch();
+        $s = db()->prepare('SELECT id,name,email,password_hash,role,status,client_id,auth_version FROM users WHERE (email=? OR name=?) LIMIT 1'); $s->execute([$email, $email]); $user = $s->fetch();
         if (!$user || !$user['password_hash'] || !password_verify($password, $user['password_hash']) || $user['status'] !== 'active') json_response(['error' => 'E-mail ou senha inválidos.'], 422);
         session_regenerate_id(true); $_SESSION['user'] = ['id'=>(int)$user['id'],'name'=>$user['name'],'email'=>$user['email'],'role'=>$user['role'],'client_id'=>$user['client_id'] ? (int)$user['client_id'] : null,'auth_version'=>(int)$user['auth_version']];
         db()->prepare('UPDATE users SET last_login_at=?,updated_at=? WHERE id=?')->execute([now(),now(),$user['id']]); audit((int)$user['id'],'login','user',$user['id']);
