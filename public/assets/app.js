@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=identity-6";
+import { createAcademy } from "./academy.js?v=notes-20261105";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
