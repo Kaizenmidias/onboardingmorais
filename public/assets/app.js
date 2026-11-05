@@ -301,7 +301,7 @@ function shell(content, section = "Visão geral") {
     .join("")}</nav>
   ${admin ? `<div class="sidebar-note">${icon("shield")}<strong>Sua marca. Seu portal.</strong><p>Uma experiência exclusiva para os clientes do seu escritório.</p></div>` : `<div class="sidebar-help"><span class="help-symbol">${icon("message")}</span><strong>Estamos com você.</strong><p>Precisa de uma orientação?</p>${contact("text-link")}</div>`}
   <div class="sidebar-bottom"><a href="#/perfil" class="nav-link">${icon("user")}Minha conta</a><a href="#/login" data-action="logout" class="nav-link">${icon("logout")}Sair</a><small>© 2026 ${esc(brand().name)}</small></div></aside>
-  <div class="workspace"><header class="topbar"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Abrir menu" aria-expanded="${menuOpen}">${icon("menu")}</button><div class="breadcrumbs">${admin ? "Administração" : "Área do cliente"} ${icon("chevron")} <span>${esc(section)}</span></div><div class="topbar-actions"><span class="secure-label">${icon("shield")} Acesso exclusivo</span><button class="icon-btn notification" data-action="notifications" aria-label="Ver comunicados">${icon("bell")}<i></i></button><a class="user-control" href="#/perfil">${avatar(admin ? "Equipe Morais" : "Mariana Oliveira")}<span><strong>${admin ? "Equipe Morais" : "Mariana Oliveira"}</strong><small>${admin ? "Administrador" : "Empresa Exemplo"}</small></span>${icon("down")}</a></div></header>
+  <div class="workspace"><header class="topbar"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Abrir menu" aria-expanded="${menuOpen}">${icon("menu")}</button><div class="breadcrumbs">${admin ? "Administração" : "Área do cliente"} ${icon("chevron")} <span>${esc(section)}</span></div><div class="topbar-actions">${admin ? `<a class="client-return-link" href="#/inicio">${icon("eye")} Área do cliente ${icon("arrow")}</a>` : ""}<span class="secure-label">${icon("shield")} Acesso exclusivo</span><button class="icon-btn notification" data-action="notifications" aria-label="Ver comunicados">${icon("bell")}<i></i></button><a class="user-control" href="#/perfil">${avatar(admin ? "Equipe Morais" : "Mariana Oliveira")}<span><strong>${admin ? "Equipe Morais" : "Mariana Oliveira"}</strong><small>${admin ? "Administrador" : "Empresa Exemplo"}</small></span>${icon("down")}</a></div></header>
   <main id="main-content" tabindex="-1" class="main-content">${content}</main><footer class="footer"><span>Conhecimento e proximidade em cada etapa.</span><a href="#/privacidade">Privacidade e termos ${icon("shield")}</a></footer></div></div>`;
 }
 function courseCover(c, small = false) {
@@ -790,7 +790,7 @@ function openMediaPicker({ accept = "all", multiple = false, onSelect }) {
       : "video/mp4,video/webm,video/quicktime,video/x-m4v,.mov,image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt";
   const matches = (file) => accept === "all" || (accept === "image" ? String(file.type || "").startsWith("image/") : String(file.type || "").startsWith("video/"));
   let selected = [];
-  const list = () => state.files.filter(matches).map((file) => `<button type="button" class="media-picker-item ${selected.includes(String(file.id)) ? "selected" : ""}" data-picker-id="${esc(file.id)}"><span class="media-picker-thumb">${String(file.type || "").startsWith("image/") ? `<img src="${esc(mediaUrl(file))}" alt="">` : icon(String(file.type || "").startsWith("video/") ? "play" : "file")}</span><span><strong>${esc(file.name)}</strong><small>${formatBytes(file.size)}</small></span></button>`).join("") || empty("Nenhum arquivo encontrado", "Envie um arquivo para começar.");
+  const list = () => state.files.filter(matches).map((file) => `<button type="button" class="media-picker-item ${selected.includes(String(file.id)) ? "selected" : ""}" data-picker-id="${esc(file.id)}"><span class="media-picker-thumb">${String(file.type || "").startsWith("image/") ? `<img src="${esc(mediaUrl(file))}" alt="">` : String(file.type || "").startsWith("video/") ? `<span class="media-video-thumb">${icon("play")}</span>` : icon("file")}</span><span><strong>${esc(file.name)}</strong><small>${formatBytes(file.size)}</small></span></button>`).join("") || empty("Nenhum arquivo encontrado", "Envie um arquivo para começar.");
   openModal("Inserir mídia", `<div class="media-picker"><div class="media-picker-toolbar"><label class="btn btn-primary file-button">${icon("upload")} Enviar arquivos<input id="media-picker-input" type="file" multiple accept="${accepts}"></label><p class="form-note">Arraste arquivos para a área abaixo ou selecione na biblioteca.</p></div><div id="media-picker-drop" class="media-picker-drop" tabindex="0" role="button" aria-label="Arraste arquivos para enviar">${icon("upload")}<strong>Solte os arquivos aqui</strong><span>ou clique para selecionar</span></div><div id="media-picker-progress" class="media-picker-progress" aria-live="polite"></div><div class="media-picker-grid" id="media-picker-grid">${list()}</div>${modalFooter(multiple ? "Usar selecionados" : "Usar arquivo")}</div>`, async () => {
     const files = state.files.filter((file) => selected.includes(String(file.id)));
     if (files.length) onSelect?.(multiple ? files : files.slice(0, 1));
@@ -1197,6 +1197,14 @@ function bindVideo() {
     state.positions[id] = v.currentTime;
     persist();
   });
+  v.addEventListener("ended", () => {
+    if (state.completed.includes(id)) return;
+    state.completed.push(id);
+    persist();
+    if (/^\d+$/.test(String(id))) void apiRequest("progress.complete", { method: "POST", body: JSON.stringify({ lesson_id: Number(id), completed: true }) });
+    render();
+    toast("Aula concluída automaticamente. Seu progresso foi atualizado.");
+  });
 }
 modal.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1306,6 +1314,7 @@ document.addEventListener("click", async (e) => {
       state.completed = state.completed.filter((v) => v !== id);
     else state.completed.push(id);
     persist();
+    if (/^\d+$/.test(String(id))) void apiRequest("progress.complete", { method: "POST", body: JSON.stringify({ lesson_id: Number(id), completed: state.completed.includes(id) }) });
     render();
     toast(
       state.completed.includes(id)
