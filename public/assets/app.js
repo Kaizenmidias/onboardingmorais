@@ -703,8 +703,6 @@ function render() {
         const note = el.parentElement?.querySelector('small');
         if (note) note.textContent = 'O vídeo desta aula ainda não foi disponibilizado.';
       });
-      const topbar = app.querySelector('.academy-topbar');
-      if (topbar && !topbar.querySelector('.academy-admin-link')) topbar.insertAdjacentHTML('beforeend', '<a class="academy-profile academy-admin-link" href="#/admin">Painel administrativo</a>');
     }
   }
   bindForms();
