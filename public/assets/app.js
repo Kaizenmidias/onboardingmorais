@@ -793,8 +793,8 @@ function openMediaPicker({ accept = "all", multiple = false, onSelect }) {
   const list = () => state.files.filter(matches).map((file) => `<button type="button" class="media-picker-item ${selected.includes(String(file.id)) ? "selected" : ""}" data-picker-id="${esc(file.id)}"><span class="media-picker-thumb">${String(file.type || "").startsWith("image/") ? `<img src="${esc(mediaUrl(file))}" alt="">` : String(file.type || "").startsWith("video/") ? `<span class="media-video-thumb">${icon("play")}</span>` : icon("file")}</span><span><strong>${esc(file.name)}</strong><small>${formatBytes(file.size)}</small></span></button>`).join("") || empty("Nenhum arquivo encontrado", "Envie um arquivo para começar.");
   openModal("Inserir mídia", `<form class="media-picker"><div class="media-picker-toolbar"><label class="btn btn-primary file-button">${icon("upload")} Enviar arquivos<input id="media-picker-input" type="file" multiple accept="${accepts}"></label><p class="form-note">Arraste arquivos para a área abaixo ou selecione na biblioteca.</p></div><div id="media-picker-drop" class="media-picker-drop" tabindex="0" role="button" aria-label="Arraste arquivos para enviar">${icon("upload")}<strong>Solte os arquivos aqui</strong><span>ou clique para selecionar</span></div><div id="media-picker-progress" class="media-picker-progress" aria-live="polite"></div><div class="media-picker-grid" id="media-picker-grid">${list()}</div>${modalFooter(multiple ? "Usar selecionados" : "Usar arquivo")}</form>`, async () => {
     const files = state.files.filter((file) => selected.includes(String(file.id)));
-    if (files.length) onSelect?.(multiple ? files : files.slice(0, 1));
     modal.close();
+    if (files.length) onSelect?.(multiple ? files : files.slice(0, 1));
   });
   const refresh = () => { const grid = modal.querySelector("#media-picker-grid"); if (grid) grid.innerHTML = list(); };
   const addFiles = async (files) => {
