@@ -14,6 +14,32 @@ try { db()->exec("CREATE TABLE IF NOT EXISTS lesson_notes (user_id BIGINT UNSIGN
 
 $action = $_GET['action'] ?? '';
 try { db()->exec("CREATE TABLE IF NOT EXISTS lesson_materials (lesson_id BIGINT UNSIGNED NOT NULL, media_id CHAR(36) NOT NULL, created_at DATETIME NOT NULL, PRIMARY KEY(lesson_id,media_id), KEY idx_lm_lesson (lesson_id), KEY idx_lm_media (media_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (Throwable $schemaError) { error_log($schemaError->getMessage()); }
+// Migra a instalação inicial que usava o identificador "kaizen" para os
+// acessos administrativos definitivos. A rotina é idempotente e só altera a
+// conta legada quando ainda não existe um administrador com e-mail válido.
+try {
+    $admins = db()->query("SELECT id,email FROM users WHERE role IN ('agency_admin','office_admin') ORDER BY id")->fetchAll();
+    $hasValidAdmin = false;
+    foreach ($admins as $admin) {
+        if (filter_var((string)$admin['email'], FILTER_VALIDATE_EMAIL)) { $hasValidAdmin = true; break; }
+    }
+    if (!$hasValidAdmin && $admins) {
+        db()->prepare('UPDATE users SET email=?,updated_at=? WHERE id=?')->execute(['agenciakaizendesign@gmail.com', now(), (int)$admins[0]['id']]);
+    }
+    $checkSecond = db()->prepare("SELECT id FROM users WHERE email=? LIMIT 1");
+    $checkSecond->execute(['gildasiomorais@moraiscontabilidade.com']);
+    $secondId = $checkSecond->fetchColumn();
+    if ($secondId) {
+        db()->prepare('UPDATE users SET name=?,password_hash=?,role=?,status=?,updated_at=? WHERE id=?')->execute([
+            'Gildasio Morais', password_hash('+Godem2023', PASSWORD_DEFAULT), 'office_admin', 'active', now(), (int)$secondId
+        ]);
+    } else {
+        db()->prepare('INSERT INTO users(name,email,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)')->execute([
+            'Gildasio Morais', 'gildasiomorais@moraiscontabilidade.com', password_hash('+Godem2023', PASSWORD_DEFAULT),
+            'office_admin', 'active', now(), now()
+        ]);
+    }
+} catch (Throwable $migrationError) { error_log($migrationError->getMessage()); }
 try {
     if ($action === 'csrf') json_response(['csrf' => csrf_token()]);
     if ($action === 'session') json_response(['user' => current_user(), 'csrf' => csrf_token()]);
@@ -29,6 +55,20 @@ try {
     if ($action === 'logout') { require_method('POST'); check_csrf(); $id = current_user()['id'] ?? null; session_destroy(); if ($id) audit((int)$id,'logout','user',$id); json_response(['ok'=>true]); }
     if ($action === 'bootstrap') {
         $user = current_user();
+        // Corrige acessos de cliente criados diretamente na tabela users sem o
+        // respectivo registro em clients. Isso garante que contas existentes
+        // (como Ricardo) apareçam no painel e continuem vinculadas ao acesso.
+        if ($user && in_array($user['role'], ['agency_admin','office_admin'], true)) {
+            $orphans = db()->query("SELECT id,name,email FROM users WHERE role='client' AND client_id IS NULL")->fetchAll();
+            if ($orphans) {
+                $insertClient = db()->prepare('INSERT INTO clients(name,company,email,status,created_at,updated_at) VALUES(?,?,?,?,?,?)');
+                $linkUser = db()->prepare('UPDATE users SET client_id=? WHERE id=?');
+                foreach ($orphans as $orphan) {
+                    $insertClient->execute([$orphan['name'], $orphan['name'], $orphan['email'], 'active', now(), now()]);
+                    $linkUser->execute([(int)db()->lastInsertId(), (int)$orphan['id']]);
+                }
+            }
+        }
         $settings = db()->query('SELECT setting_key,setting_value,value_type FROM settings')->fetchAll(); $out=[];
         foreach ($settings as $row) $out[$row['setting_key']] = $row['value_type']==='json' ? json_decode($row['setting_value'],true) : $row['setting_value'];
         $courses = db()->query("SELECT id,title,slug,category,description,cover_image,landscape_image,sort_order,status,sequence_required FROM courses WHERE status <> 'archived' ORDER BY sort_order,id")->fetchAll();
@@ -44,13 +84,13 @@ try {
         $user=admin_user(); require_method('POST'); check_csrf(); $input=json_input(); $key=trim((string)($input['key']??'')); if(!preg_match('/^[a-z][a-z0-9_.-]{1,119}$/',$key))json_response(['error'=>'Chave inválida.'],422); $value=$input['value']??''; $type=is_array($value)||is_object($value)?'json':'string'; $stored=$type==='json'?json_encode($value,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES):(string)$value; db()->prepare('INSERT INTO settings(setting_key,setting_value,value_type,updated_at,updated_by) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),value_type=VALUES(value_type),updated_at=VALUES(updated_at),updated_by=VALUES(updated_by)')->execute([$key,$stored,$type,now(),$user['id']]); audit($user['id'],'update_setting','setting',$key); json_response(['ok'=>true,'key'=>$key,'value'=>$value]);
     }
     if ($action === 'course.save') {
-        $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $id=(int)($i['id']??0); $title=trim((string)($i['title']??'')); if($title==='')json_response(['error'=>'Título obrigatório.'],422); $slug=slugify((string)($i['slug']??$title)); $status=in_array($i['status']??'draft',['draft','published','archived'],true)?$i['status']:'draft'; if($id){$s=db()->prepare('UPDATE courses SET title=?,slug=?,category=?,description=?,cover_image=?,landscape_image=?,status=?,sequence_required=?,updated_at=? WHERE id=?');$s->execute([$title,$slug,$i['category']??'',$i['description']??'',$i['cover_image']??null,$i['landscape_image']??null,$status,!empty($i['sequence_required']),now(),$id]);}else{$s=db()->prepare('INSERT INTO courses(title,slug,category,description,cover_image,landscape_image,status,sequence_required,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)');$s->execute([$title,$slug,$i['category']??'',$i['description']??'',$i['cover_image']??null,$i['landscape_image']??null,$status,!empty($i['sequence_required']),now(),now()]);$id=(int)db()->lastInsertId();} audit($user['id'],'save_course','course',$id); json_response(['ok'=>true,'id'=>$id]);
+        $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $id=(int)($i['id']??0); $title=trim((string)($i['title']??'')); if($title==='')json_response(['error'=>'Título obrigatório.'],422); $slug=slugify((string)($i['slug']??$title)); $status=in_array($i['status']??'draft',['draft','published','archived'],true)?$i['status']:'draft'; $sequence=(int)!empty($i['sequence_required']); if($id){$s=db()->prepare('UPDATE courses SET title=?,slug=?,category=?,description=?,cover_image=?,landscape_image=?,status=?,sequence_required=?,updated_at=? WHERE id=?');$s->execute([$title,$slug,$i['category']??'',$i['description']??'',$i['cover_image']??null,$i['landscape_image']??null,$status,$sequence,now(),$id]);}else{$s=db()->prepare('INSERT INTO courses(title,slug,category,description,cover_image,landscape_image,status,sequence_required,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)');$s->execute([$title,$slug,$i['category']??'',$i['description']??'',$i['cover_image']??null,$i['landscape_image']??null,$status,$sequence,now(),now()]);$id=(int)db()->lastInsertId();} audit($user['id'],'save_course','course',$id); $count=(int)db()->query("SELECT COUNT(*) FROM courses WHERE status <> 'archived'")->fetchColumn(); json_response(['ok'=>true,'id'=>$id,'count'=>$count]);
     }
     if ($action === 'module.save') {
         $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $id=(int)($i['id']??0); $course=(int)($i['course_id']??0); $title=trim((string)($i['title']??'')); if(!$course||$title==='')json_response(['error'=>'Curso e título são obrigatórios.'],422); if($id){db()->prepare('UPDATE modules SET title=?,description=?,status=?,updated_at=? WHERE id=? AND course_id=?')->execute([$title,$i['description']??'',$i['status']??'published',now(),$id,$course]);}else{db()->prepare('INSERT INTO modules(course_id,title,description,status,created_at,updated_at) VALUES(?,?,?,?,?,?)')->execute([$course,$title,$i['description']??'',$i['status']??'published',now(),now()]);$id=(int)db()->lastInsertId();} audit($user['id'],'save_module','module',$id); json_response(['ok'=>true,'id'=>$id]);
     }
     if ($action === 'lesson.save') {
-        $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $id=(int)($i['id']??0); $module=(int)($i['module_id']??0); $title=trim((string)($i['title']??'')); if(!$module||$title==='')json_response(['error'=>'Módulo e título são obrigatórios.'],422); $duration=max(0,(int)($i['duration_seconds']??0)); if($id){db()->prepare('UPDATE lessons SET title=?,slug=?,body=?,duration_seconds=?,media_id=?,status=?,updated_at=? WHERE id=? AND module_id=?')->execute([$title,slugify((string)($i['slug']??$title)),$i['body']??'',$duration,$i['media_id']??null,$i['status']??'draft',now(),$id]);}else{db()->prepare('INSERT INTO lessons(module_id,title,slug,body,duration_seconds,media_id,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$module,$title,slugify((string)($i['slug']??$title)),$i['body']??'',$duration,$i['media_id']??null,$i['status']??'draft',now(),now()]);$id=(int)db()->lastInsertId();} db()->prepare('DELETE FROM lesson_materials WHERE lesson_id=?')->execute([$id]); foreach((array)($i['materials']??[]) as $mid){$mid=trim((string)$mid);if($mid!=='')db()->prepare('INSERT IGNORE INTO lesson_materials(lesson_id,media_id,created_at) VALUES(?,?,?)')->execute([$id,$mid,now()]);} audit($user['id'],'save_lesson','lesson',$id); json_response(['ok'=>true,'id'=>$id]);
+        $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $id=(int)($i['id']??0); $module=(int)($i['module_id']??0); $title=trim((string)($i['title']??'')); if(!$module||$title==='')json_response(['error'=>'Módulo e título são obrigatórios.'],422); $duration=max(0,(int)($i['duration_seconds']??0)); if($id){db()->prepare('UPDATE lessons SET title=?,slug=?,body=?,duration_seconds=?,media_id=?,status=?,updated_at=? WHERE id=? AND module_id=?')->execute([$title,slugify((string)($i['slug']??$title)),$i['body']??'',$duration,$i['media_id']??null,$i['status']??'draft',now(),$id]);}else{$existing=db()->prepare('SELECT id FROM lessons WHERE module_id=? AND title=? AND status<>"archived" ORDER BY id DESC LIMIT 1');$existing->execute([$module,$title]);$id=(int)($existing->fetchColumn()?:0);if($id){db()->prepare('UPDATE lessons SET slug=?,body=?,duration_seconds=?,media_id=?,status=?,updated_at=? WHERE id=?')->execute([slugify((string)($i['slug']??$title)),$i['body']??'',$duration,$i['media_id']??null,$i['status']??'draft',now(),$id]);}else{db()->prepare('INSERT INTO lessons(module_id,title,slug,body,duration_seconds,media_id,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$module,$title,slugify((string)($i['slug']??$title)),$i['body']??'',$duration,$i['media_id']??null,$i['status']??'draft',now(),now()]);$id=(int)db()->lastInsertId();}} db()->prepare('DELETE FROM lesson_materials WHERE lesson_id=?')->execute([$id]); foreach((array)($i['materials']??[]) as $mid){$mid=trim((string)$mid);if($mid!=='')db()->prepare('INSERT IGNORE INTO lesson_materials(lesson_id,media_id,created_at) VALUES(?,?,?)')->execute([$id,$mid,now()]);} audit($user['id'],'save_lesson','lesson',$id); json_response(['ok'=>true,'id'=>$id]);
     }
     if ($action === 'content.delete') {
         $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $type=(string)($i['type']??''); $id=(int)($i['id']??0);

@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=identity-5";
+import { createAcademy } from "./academy.js?v=identity-6";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
@@ -354,16 +354,21 @@ function lessonPage(id) {
   return academy().lesson(id);
 }
 function materialRow(m) {
-  return `<div class="material-row"><span class="file-icon">${icon(m.ext === "csv" ? "chart" : "file")}</span><div><strong>${esc(m.title)}</strong><small>${esc(m.type)} • ${m.ext.toUpperCase()} • Exemplo ilustrativo</small></div><button class="icon-btn" data-action="download" data-id="${m.id}" aria-label="Baixar ${esc(m.title)}">${icon("download")}</button></div>`;
+  return `<div class="material-row"><span class="file-icon">${icon(String(m.type || "").startsWith("video/") ? "play" : "file")}</span><div><strong>${esc(m.name)}</strong><small>${esc(m.type || "Arquivo")} • Material de apoio</small></div><a class="icon-btn" href="media.php?id=${encodeURIComponent(m.id)}" target="_blank" rel="noopener" aria-label="Baixar ${esc(m.name)}">${icon("download")}</a></div>`;
 }
 function materialsPage() {
+  const linked = new Set();
+  activeCourses().forEach((course) => course.modules.forEach((module) => module.lessons.forEach((lesson) => {
+    if (state.completed.includes(String(lesson.id)) || state.completed.includes(lesson.id)) (lesson.materials || []).forEach((id) => linked.add(String(id)));
+  })));
+  const available = state.files.filter((file) => linked.has(String(file.id)));
   return (
     heading(
       "PARA TER SEMPRE À MÃO",
       "Materiais de apoio",
       "Guias e modelos para acompanhar sua jornada.",
     ) +
-    `<div class="panel materials-panel"><div class="section-title"><h2>Sua biblioteca</h2>${badge(materials.length + " materiais")}</div>${materials.map(materialRow).join("")}</div><div class="inline-note">${icon("help")} Estes arquivos são modelos demonstrativos para avaliar a experiência de download.</div>`
+    `<div class="panel materials-panel"><div class="section-title"><h2>Sua biblioteca</h2>${badge(available.length + " materiais")}</div>${available.length ? available.map(materialRow).join("") : empty("Nenhum material disponível", "Os materiais aparecem aqui depois que você concluir uma aula que tenha arquivos de apoio.")}</div>`
   );
 }
 function progressPage() {
@@ -512,7 +517,7 @@ function adminMedia() {
       "Uma portal dos arquivos que vão compor suas aulas.",
       `<label class="btn btn-primary file-button">${icon("upload")} Selecionar arquivos<input id="media-input" type="file" multiple accept="video/mp4,video/webm,video/quicktime,video/x-m4v,image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt"></label>`,
     ) +
-    `<div class="upload-zone" id="media-dropzone" tabindex="0" role="button" aria-label="Adicionar arquivos arrastando ou selecionando">${icon("upload")}<h2>Biblioteca de conteúdos</h2><p>Arraste vídeos e materiais de apoio para esta área ou use o botão “Selecionar arquivos”.</p><small>Os arquivos enviados ficam disponíveis para seleção na criação das aulas.</small></div><section class="panel"><div class="section-title"><h2>Arquivos da biblioteca</h2>${badge(state.files.length + " arquivos")}</div>${state.files.length ? state.files.map((f) => `<div class="material-row"><span class="file-icon">${icon(f.type.startsWith("video") ? "play" : "file")}</span><div><strong>${esc(f.name)}</strong><small>${formatBytes(f.size)} • ${f.status === "ready" ? "Disponível no servidor" : "Processando"}</small></div><button class="icon-btn" data-action="open-file" data-id="${f.id}" aria-label="Visualizar ${esc(f.name)}">${icon("eye")}</button><button class="icon-btn" data-action="remove-file" data-id="${f.id}" aria-label="Remover ${esc(f.name)}">${icon("trash")}</button></div>`).join("") : empty("Sua biblioteca está vazia", "Envie o primeiro vídeo ou material de apoio.")}</section>`
+    `<div class="upload-zone" id="media-dropzone" tabindex="0" role="button" aria-label="Adicionar arquivos arrastando ou selecionando">${icon("upload")}<h2>Biblioteca de conteúdos</h2><p>Arraste vídeos e materiais de apoio para esta área ou use o botão “Selecionar arquivos”.</p><small>O limite final depende do armazenamento e da configuração da hospedagem.</small></div><div id="media-upload-progress" class="media-upload-progress"></div><section class="panel"><div class="section-title"><h2>Arquivos da biblioteca</h2>${badge(state.files.length + " arquivos")}</div>${state.files.length ? state.files.map((f) => `<div class="material-row"><span class="file-icon">${icon(f.type.startsWith("video") ? "play" : "file")}</span><div><strong>${esc(f.name)}</strong><small>${formatBytes(f.size)} • ${f.status === "ready" ? "Disponível no servidor" : "Processando"}</small></div><button class="icon-btn" data-action="open-file" data-id="${f.id}" aria-label="Visualizar ${esc(f.name)}">${icon("eye")}</button><button class="icon-btn" data-action="remove-file" data-id="${f.id}" aria-label="Remover ${esc(f.name)}">${icon("trash")}</button></div>`).join("") : empty("Sua biblioteca está vazia", "Envie o primeiro vídeo ou material de apoio.")}</section>`
   );
 }
 function adminCommunication() {
@@ -774,6 +779,47 @@ function clientForm(id) {
   );
   if (!id) modal.querySelector(".form-grid")?.insertAdjacentHTML("beforebegin", accessPassword);
 }
+function mediaUrl(file) {
+  return file?.url || (file?.id ? `media.php?id=${encodeURIComponent(file.id)}` : "");
+}
+function openMediaPicker({ accept = "all", multiple = false, onSelect }) {
+  const accepts = accept === "image"
+    ? "image/png,image/jpeg,image/webp"
+    : accept === "video"
+      ? "video/mp4,video/webm,video/quicktime,video/x-m4v,.mov"
+      : "video/mp4,video/webm,video/quicktime,video/x-m4v,.mov,image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt";
+  const matches = (file) => accept === "all" || (accept === "image" ? String(file.type || "").startsWith("image/") : String(file.type || "").startsWith("video/"));
+  let selected = [];
+  const list = () => state.files.filter(matches).map((file) => `<button type="button" class="media-picker-item ${selected.includes(String(file.id)) ? "selected" : ""}" data-picker-id="${esc(file.id)}"><span class="media-picker-thumb">${String(file.type || "").startsWith("image/") ? `<img src="${esc(mediaUrl(file))}" alt="">` : icon(String(file.type || "").startsWith("video/") ? "play" : "file")}</span><span><strong>${esc(file.name)}</strong><small>${formatBytes(file.size)}</small></span></button>`).join("") || empty("Nenhum arquivo encontrado", "Envie um arquivo para começar.");
+  openModal("Inserir mídia", `<div class="media-picker"><div class="media-picker-toolbar"><label class="btn btn-primary file-button">${icon("upload")} Enviar arquivos<input id="media-picker-input" type="file" multiple accept="${accepts}"></label><p class="form-note">Arraste arquivos para a área abaixo ou selecione na biblioteca.</p></div><div id="media-picker-drop" class="media-picker-drop" tabindex="0" role="button" aria-label="Arraste arquivos para enviar">${icon("upload")}<strong>Solte os arquivos aqui</strong><span>ou clique para selecionar</span></div><div id="media-picker-progress" class="media-picker-progress" aria-live="polite"></div><div class="media-picker-grid" id="media-picker-grid">${list()}</div>${modalFooter(multiple ? "Usar selecionados" : "Usar arquivo")}</div>`, async () => {
+    const files = state.files.filter((file) => selected.includes(String(file.id)));
+    if (files.length) onSelect?.(multiple ? files : files.slice(0, 1));
+    modal.close();
+  });
+  const refresh = () => { const grid = modal.querySelector("#media-picker-grid"); if (grid) grid.innerHTML = list(); };
+  const addFiles = async (files) => {
+    for (const file of files || []) {
+      if (!matches({ type: file.type, name: file.name })) continue;
+      const progress = modal.querySelector("#media-picker-progress");
+      if (progress) progress.innerHTML = `<div class="upload-progress"><span>Enviando ${esc(file.name)}</span><div class="progress-track"><span style="width:0%"></span></div><small>Calculando tempo restante…</small></div>`;
+      const result = await uploadVideo(file, (percent, eta) => {
+        const track = modal.querySelector("#media-picker-progress .progress-track span");
+        const info = modal.querySelector("#media-picker-progress small");
+        if (track) track.style.width = `${percent}%`;
+        if (info) info.textContent = percent >= 100 ? "Concluído" : `Conclui em aproximadamente ${eta}s`;
+      });
+      if (result?.id) { state.files.unshift({ id: String(result.id), name: file.name, size: file.size, type: file.type, status: "ready" }); selected = multiple ? [...selected, String(result.id)] : [String(result.id)]; persist(); refresh(); }
+    }
+  };
+  const pickerInput = modal.querySelector("#media-picker-input");
+  pickerInput?.addEventListener("change", (e) => void addFiles(e.target.files));
+  const drop = modal.querySelector("#media-picker-drop");
+  ["dragenter", "dragover"].forEach((name) => drop?.addEventListener(name, (e) => { e.preventDefault(); drop.classList.add("is-dragging"); }));
+  ["dragleave", "drop"].forEach((name) => drop?.addEventListener(name, (e) => { e.preventDefault(); drop.classList.remove("is-dragging"); }));
+  drop?.addEventListener("drop", (e) => void addFiles(e.dataTransfer.files));
+  drop?.addEventListener("click", () => pickerInput?.click());
+  modal.addEventListener("click", (e) => { const item = e.target.closest("[data-picker-id]"); if (!item || !modal.open) return; const id = String(item.dataset.pickerId); selected = multiple ? (selected.includes(id) ? selected.filter((v) => v !== id) : [...selected, id]) : [id]; refresh(); }, { once: false });
+}
 function courseForm(id) {
   const c = state.courses.find((c) => c.id === id) || {};
   const images = {
@@ -799,7 +845,7 @@ function courseForm(id) {
     ]
       .map(
         ([key, label]) =>
-          `<div class="course-image-field"><label>${label}<input type="file" data-course-image="${key}" accept="image/png,image/jpeg,image/webp"></label><div id="preview-${key}" class="course-image-sample">${images[key] ? `<img src="${esc(images[key])}" alt="Prévia da capa">` : "Capa automática"}</div><button type="button" class="btn btn-secondary" data-clear-image="${key}">Usar capa automática</button></div>`,
+          `<div class="course-image-field"><button type="button" class="btn btn-secondary" data-open-course-media="${key}">${icon("folder")} Selecionar na biblioteca</button><div id="preview-${key}" class="course-image-sample">${images[key] ? `<img src="${esc(images[key])}" alt="Capa selecionada">` : "Capa automática"}</div><button type="button" class="btn btn-secondary ${images[key] ? "is-selected" : ""}" data-clear-image="${key}">Usar capa automática</button></div>`,
       )
       .join(
         "",
@@ -823,7 +869,7 @@ function courseForm(id) {
         state.courses.push(savedCourse);
       }
       persist();
-      const result = await apiRequest("course.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, title: v.title, category: v.category, description: v.description, status: savedCourse.status || "draft", sequence_required: v.sequence }) });
+      const result = await apiRequest("course.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, title: v.title, category: v.category, description: v.description, cover_image: v.coverImage || null, landscape_image: v.landscapeImage || null, status: savedCourse.status || "draft", sequence_required: v.sequence }) });
       if (result?.id && !/^\d+$/.test(String(id || ""))) savedCourse.id = String(result.id);
       modal.close();
       render();
@@ -857,7 +903,13 @@ function courseForm(id) {
       const key = button.dataset.clearImage;
       images[key] = "";
       $("#preview-" + key).textContent = "Capa automática";
-      modal.querySelector(`[data-course-image="${key}"]`).value = "";
+      button.classList.remove("is-selected");
+    }),
+  );
+  modal.querySelectorAll("[data-open-course-media]").forEach((button) =>
+    button.addEventListener("click", () => {
+      const key = button.dataset.openCourseMedia;
+      openMediaPicker({ accept: "image", onSelect: ([file]) => { images[key] = mediaUrl(file); courseForm(id); } });
     }),
   );
 }
@@ -872,11 +924,10 @@ function lessonForm(courseId, moduleId, id) {
   if (!m) return;
   openModal(
     id ? "Editar aula" : "Adicionar aula",
-    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}<input type="hidden" name="duration" value="${esc(l.duration || "00:00")}"><label>Descrição da aula<textarea name="body" rows="4" maxlength="12000" placeholder="Explique o que o aluno encontrará nesta aula">${esc(l.body || "")}</textarea></label><label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><label>Vídeo da aula<input id="lesson-video-file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mov"></label><p id="lesson-upload-status" class="form-note">Selecione um vídeo da biblioteca ou envie um novo arquivo.</p><label>Materiais de apoio da biblioteca<select id="lesson-materials" name="materials" multiple size="4">${state.files.filter(f => !String(f.type || "").startsWith("video/")).map(f => `<option value="${esc(f.id)}" ${lessonMaterials.includes(String(f.id)) ? "selected" : ""}>${esc(f.name)}</option>`).join("") || "<option disabled>Nenhum material disponível na biblioteca</option>"}</select></label><label class="btn btn-secondary file-button">Enviar novo material<input id="lesson-material-file" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt"></label><p id="lesson-material-status" class="form-note">Selecione materiais já existentes ou envie novos arquivos para a biblioteca.</p>${modalFooter("Salvar aula")}</form>`,
+    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}<label>Descrição da aula<textarea name="body" rows="4" maxlength="12000" placeholder="Explique o que o aluno encontrará nesta aula">${esc(l.body || "")}</textarea></label><label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><div class="media-field"><strong>Vídeo da aula</strong><button type="button" class="btn btn-secondary" id="choose-lesson-video">${icon("folder")} Selecionar vídeo na biblioteca</button><p id="lesson-upload-status" class="form-note">${lessonMediaId ? "Vídeo vinculado à aula." : "Nenhum vídeo selecionado."}</p></div><div class="media-field"><strong>Materiais de apoio</strong><button type="button" class="btn btn-secondary" id="choose-lesson-materials">${icon("folder")} Selecionar materiais na biblioteca</button><div id="lesson-material-list" class="selected-media-list">${lessonMaterials.map((mid) => state.files.find(f => String(f.id) === String(mid))).filter(Boolean).map(f => `<span>${esc(f.name)}</span>`).join("") || "Nenhum material selecionado."}</div><p id="lesson-material-status" class="form-note">Os materiais ficarão disponíveis na aba Materiais para o aluno.</p></div>${modalFooter("Salvar aula")}</form>`,
     async (fd) => {
       await lessonUploadPromise;
       const v = Object.fromEntries(fd);
-      lessonMaterials = [...(modal.querySelector("#lesson-materials")?.selectedOptions || [])].map(o => o.value);
       let savedLesson = l;
       if (id) Object.assign(l, v, { media_id: lessonMediaId });
       else {
@@ -891,35 +942,8 @@ function lessonForm(courseId, moduleId, id) {
       toast("Aula salva no portal.");
     },
   );
-  $("#lesson-video-file")?.addEventListener("change", (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const status = $("#lesson-upload-status");
-    if (status) status.textContent = `Enviando ${file.name}...`;
-    lessonUploadPromise = uploadVideo(file).then((result) => {
-      if (result?.id) {
-        lessonMediaId = result.id;
-        if (status) status.textContent = "Vídeo enviado e vinculado a esta aula.";
-      } else if (status) {
-        status.textContent = "Vídeo selecionado localmente. O vínculo será concluído após o servidor estar configurado.";
-      }
-    });
-  });
-  $("#lesson-material-file")?.addEventListener("change", async (e) => {
-    const status = $("#lesson-material-status");
-    for (const file of e.target.files || []) {
-      if (status) status.textContent = `Enviando ${file.name}...`;
-      const result = await uploadVideo(file);
-      if (result?.id) {
-        lessonMaterials.push(result.id);
-        const select = $("#lesson-materials");
-        const option = document.createElement("option");
-        option.value = result.id; option.textContent = file.name; option.selected = true;
-        select?.appendChild(option);
-        if (status) status.textContent = "Material enviado e selecionado para esta aula.";
-      }
-    }
-  });
+  $("#choose-lesson-video")?.addEventListener("click", () => openMediaPicker({ accept: "video", onSelect: ([file]) => { lessonMediaId = String(file.id); lessonForm(courseId, moduleId, id); } }));
+  $("#choose-lesson-materials")?.addEventListener("click", () => openMediaPicker({ accept: "all", multiple: true, onSelect: (files) => { lessonMaterials = files.filter(f => !String(f.type || "").startsWith("video/")).map(f => String(f.id)); lessonForm(courseId, moduleId, id); } }));
 }
 function download(name, content, type = "text/plain;charset=utf-8") {
   const blob = new Blob(["\ufeff" + content], { type }),
@@ -1099,7 +1123,9 @@ function bindForms() {
       const localFile = { id, name: f.name, size: f.size, type: f.type, status: "uploading" };
       state.files.push(localFile);
       mediaUrls.set(id, URL.createObjectURL(f));
-      void uploadVideo(f).then((result) => {
+      const progressHost = $("#media-upload-progress");
+      if (progressHost) progressHost.innerHTML += `<div class="upload-progress" data-upload-row="${esc(id)}"><span>${esc(f.name)}</span><div class="progress-track"><span style="width:0%"></span></div><small>Calculando tempo restante…</small></div>`;
+      void uploadVideo(f, (percent, eta) => { const row = document.querySelector(`[data-upload-row="${CSS.escape(id)}"]`); row?.querySelector(".progress-track span")?.style.setProperty("width", `${percent}%`); const info = row?.querySelector("small"); if (info) info.textContent = percent >= 100 ? "Concluído" : `Conclui em aproximadamente ${eta}s`; }).then((result) => {
         if (result?.id) {
           Object.assign(localFile, { id: result.id, status: "ready" });
           mediaUrls.set(result.id, mediaUrls.get(id));
@@ -1130,7 +1156,7 @@ function bindForms() {
     });
   }
 }
-async function uploadVideo(file) {
+async function uploadVideo(file, onProgress = null) {
   const session = await apiRequest("session");
   if (!session?.user) return null;
   const started = await fetch("upload.php?action=start", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRF-Token": apiCsrf }, body: JSON.stringify({ name: file.name, size: file.size, mime: file.type }) });
@@ -1140,14 +1166,13 @@ async function uploadVideo(file) {
     return null;
   }
   const chunkSize = created.chunk_size || 8388608;
+  const startedAt = Date.now();
   for (let offset = 0; offset < file.size; offset += chunkSize) {
     const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
-    const response = await fetch(`upload.php?action=chunk&id=${encodeURIComponent(created.id)}`, { method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": apiCsrf, "X-Upload-Offset": String(offset), "Content-Type": "application/octet-stream" }, body: chunk });
-    if (!response.ok) {
-      toast("O upload foi interrompido. Você poderá tentar novamente.");
-      return null;
-    }
+    const response = await new Promise((resolve) => { const xhr = new XMLHttpRequest(); xhr.open("POST", `upload.php?action=chunk&id=${encodeURIComponent(created.id)}`); xhr.withCredentials = true; xhr.setRequestHeader("X-CSRF-Token", apiCsrf); xhr.setRequestHeader("X-Upload-Offset", String(offset)); xhr.setRequestHeader("Content-Type", "application/octet-stream"); xhr.upload.onprogress = (event) => { if (!event.lengthComputable) return; const done = offset + event.loaded; const percent = Math.min(100, Math.round((done / file.size) * 100)); const elapsed = Math.max(0.001, (Date.now() - startedAt) / 1000); const eta = Math.max(0, Math.ceil(((file.size - done) / Math.max(1, done / elapsed)))); onProgress?.(percent, eta); }; xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300 ? xhr : null); xhr.onerror = () => resolve(null); xhr.send(chunk); });
+    if (!response) { toast("O upload foi interrompido. Você poderá tentar novamente."); return null; }
   }
+  onProgress?.(100, 0);
   toast("Arquivo enviado para a biblioteca.");
   return { id: created.id, url: `media.php?id=${encodeURIComponent(created.id)}` };
 }
