@@ -404,6 +404,7 @@ function clientTable(list = state.clients) {
 }
 function adminHome() {
   const active = state.clients.filter((c) => c.status === "active").length;
+  const avg = state.clients.length ? Math.round(state.clients.reduce((sum, c) => sum + Number(c.progress || 0), 0) / state.clients.length) : 0;
   return (
     heading(
       "SEU ESCRITÓRIO, MAIS PRÓXIMO",
@@ -411,7 +412,7 @@ function adminHome() {
       "Acompanhe jornadas, cuide dos próximos passos e mantenha seus clientes por perto.",
       `<button class="btn btn-primary" data-action="client-form">${icon("plus")} Novo cliente</button>`,
     ) +
-    `<div class="stats-grid">${statsCard("users", state.clients.length, "Clientes cadastrados", "Empresas na demonstração")}${statsCard("shield", active, "Clientes ativos", "Acessos liberados", "green")}${statsCard("chart", Math.round(state.clients.reduce((a, c) => a + (c.id === "cliente-1" ? pct() : c.progress), 0) / state.clients.length) + "%", "Conclusão média", "Indicador demonstrativo", "orange")}${statsCard("clock", state.clients.filter((c) => c.last.includes("dias")).length, "Precisam de atenção", "Sem atividade recente", "pink")}</div><div class="admin-overview"><section class="panel"><div class="section-title"><div><h2>Jornadas em movimento</h2><p class="muted">Atividade ilustrativa dos últimos 7 dias</p></div>${badge("Esta semana")}</div><div class="activity-chart" role="img" aria-label="Gráfico ilustrativo de atividade de segunda a domingo"><div class="chart-grid"><span>20</span><span>10</span><span>0</span></div>${[45, 67, 55, 88, 72, 30, 42].map((h, i) => `<div class="chart-column"><div style="height:${h}%" class="${i === 3 ? "highlight" : ""}"><span>${Math.round(h / 5)}</span></div><small>${["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"][i]}</small></div>`).join("")}</div></section><section class="attention-card"><span class="stat-icon orange">${icon("spark")}</span><h2>Um contato faz a diferença.</h2><p>Identifique quem precisa de apoio para continuar a jornada com o seu escritório.</p><div class="attention-person">${avatar("Pedro Lima")}<span><strong>Pedro Lima</strong><small>Último acesso há 16 dias</small></span></div>${link("/admin/cliente/cliente-4", `Acompanhar cliente ${icon("arrow")}`, "text-link")}</section></div><section class="panel"><div class="section-title"><div><h2>Acompanhe seus clientes</h2><p class="muted">Uma visão próxima de cada jornada.</p></div>${link("/admin/clientes", `Ver todos ${icon("arrow")}`, "text-link")}</div>${clientTable(state.clients.slice(0, 4))}</section>`
+    `<div class="stats-grid">${statsCard("users", state.clients.length, "Clientes cadastrados", "Banco de dados")}${statsCard("shield", active, "Clientes ativos", "Acessos liberados", "green")}${statsCard("chart", avg + "%", "Conclusão média", "Progresso registrado", "orange")}${statsCard("clock", state.clients.filter((c) => c.status === "inactive").length, "Em standby", "Acessos bloqueados", "pink")}</div><section class="panel"><div class="section-title"><div><h2>Acompanhe seus clientes</h2><p class="muted">Dados atuais registrados no sistema.</p></div>${link("/admin/clientes", `Ver todos ${icon("arrow")}`, "text-link")}</div>${clientTable(state.clients.slice(0, 4))}</section>`
   );
 }
 function adminClients() {
@@ -452,7 +453,7 @@ function clientDetail(id) {
       "Nenhuma trilha liberada",
       "Edite o cadastro para selecionar os conteúdos.",
     )
-  }</section><aside class="panel course-summary"><h2>Ações do acesso</h2><p>Fluxo demonstrativo. Os convites reais serão ativados com o backend.</p><button class="btn btn-primary full" data-action="invite" data-id="${c.id}">${icon("mail")} Simular convite</button><button class="btn btn-secondary full" data-action="toggle-client" data-id="${c.id}">${icon("shield")} ${c.status === "inactive" ? "Ativar cliente" : "Desativar cliente"}</button><div class="summary-help">${icon("clock")}<p>Histórico ilustrativo<br>Cadastro e liberação de trilhas.</p></div></aside></div>`;
+  }</section><aside class="panel course-summary"><h2>Ações do acesso</h2><p>Gerencie o acesso sem apagar o progresso do cliente.</p><button class="btn btn-primary full" data-action="invite" data-id="${c.id}">${icon("mail")} Enviar convite</button><button class="btn btn-secondary full" data-action="toggle-client" data-id="${c.id}">${icon("shield")} ${c.status === "inactive" ? "Reativar acesso" : "Colocar em standby"}</button><button class="btn btn-quiet full" data-action="delete-client" data-id="${c.id}">${icon("trash")} Excluir conta</button><div class="summary-help">${icon("clock")}<p>O standby preserva o progresso e bloqueia o login.</p></div></aside></div>`;
 }
 function adminContent() {
   return (
@@ -617,7 +618,7 @@ function render() {
   }
   applyBrand();
   const [root, id, detail] = route();
-  const storedUser = (() => { try { return JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
   if (!["login", "recuperar", "convite", "redefinir"].includes(root) && !storedUser) {
     app.innerHTML = authPage("login");
     bindForms();
@@ -825,16 +826,20 @@ function lessonForm(courseId, moduleId, id) {
     m = info?.m || c?.modules.find((v) => v.id === moduleId),
     l = info?.l || {};
   let lessonMediaId = l.media_id || "";
+  let lessonMaterials = Array.isArray(l.materials) ? [...l.materials] : [];
+  let lessonUploadPromise = Promise.resolve();
   if (!m) return;
   openModal(
     id ? "Editar aula" : "Adicionar aula",
-    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}${input("Duração (min:seg)", "duration", l.duration || "05:00", "text", 'required pattern="[0-9]{1,3}:[0-5][0-9]"')}<label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><label>Vídeo da aula<input id="lesson-video-file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v"></label><p id="lesson-upload-status" class="form-note">Selecione um vídeo para enviá-lo diretamente para esta aula.</p>${modalFooter()}</form>`,
-    (fd) => {
+    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}${input("Duração (min:seg)", "duration", l.duration || "05:00", "text", 'required pattern="[0-9]{1,3}:[0-5][0-9]"')}<label>Descrição da aula<textarea name="body" rows="4" maxlength="12000" placeholder="Explique o que o aluno encontrará nesta aula">${esc(l.body || "")}</textarea></label><label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><label>Vídeo da aula<input id="lesson-video-file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mov"></label><p id="lesson-upload-status" class="form-note">Selecione um vídeo da biblioteca ou envie um novo arquivo.</p><label>Materiais de apoio da biblioteca<select id="lesson-materials" name="materials" multiple size="4">${state.files.filter(f => !String(f.type || "").startsWith("video/")).map(f => `<option value="${esc(f.id)}" ${lessonMaterials.includes(String(f.id)) ? "selected" : ""}>${esc(f.name)}</option>`).join("") || "<option disabled>Nenhum material disponível na biblioteca</option>"}</select></label><p class="form-note">Use Ctrl/Cmd para selecionar mais de um material.</p>${modalFooter("Salvar aula")}</form>`,
+    async (fd) => {
+      await lessonUploadPromise;
       const v = Object.fromEntries(fd);
+      lessonMaterials = [...(modal.querySelector("#lesson-materials")?.selectedOptions || [])].map(o => o.value);
       if (id) Object.assign(l, v, { media_id: lessonMediaId });
       else m.lessons.push({ ...v, media_id: lessonMediaId, id: uid("aula") });
       persist();
-      void apiRequest("lesson.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, module_id: /^\d+$/.test(String(moduleId || "")) ? Number(moduleId) : 0, title: v.title, body: v.body || "", media_id: lessonMediaId || null, duration_seconds: v.duration ? v.duration.split(":").reduce((a, n) => a * 60 + Number(n), 0) : 0, status: "draft" }) });
+      void apiRequest("lesson.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, module_id: /^\d+$/.test(String(moduleId || "")) ? Number(moduleId) : 0, title: v.title, body: v.body || "", media_id: lessonMediaId || null, materials: lessonMaterials, duration_seconds: v.duration ? v.duration.split(":").reduce((a, n) => a * 60 + Number(n), 0) : 0, status: "published" }) });
       modal.close();
       render();
       toast("Aula salva na demonstração.");
@@ -845,7 +850,7 @@ function lessonForm(courseId, moduleId, id) {
     if (!file) return;
     const status = $("#lesson-upload-status");
     if (status) status.textContent = `Enviando ${file.name}...`;
-    uploadVideo(file).then((result) => {
+    lessonUploadPromise = uploadVideo(file).then((result) => {
       if (result?.id) {
         lessonMediaId = result.id;
         if (status) status.textContent = "Vídeo enviado e vinculado a esta aula.";
@@ -910,17 +915,17 @@ function bindForms() {
     if (kind === "login") {
       const localClient = state.clients.find((client) => String(client.email || "").toLowerCase() === String(fd.get("email") || "").trim().toLowerCase() && client.password && client.password === fd.get("password"));
       if (localClient) {
-        sessionStorage.setItem(AUTH_KEY, JSON.stringify({ id: localClient.id, name: localClient.name, role: "client", email: localClient.email, client_id: localClient.id }));
+        localStorage.setItem(AUTH_KEY, JSON.stringify({ id: localClient.id, name: localClient.name, role: "client", email: localClient.email, client_id: localClient.id }));
         location.hash = "/inicio";
         toast("Acesso realizado.");
         return;
       }
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
       form.reset();
-      if (result?.user) { sessionStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
+      if (result?.user) { localStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
       else if (String(fd.get("email")).trim().toLowerCase() === "kaizen" && fd.get("password") === "Kaizen@@2026") {
         const user = { id: "demo-kaizen", name: "Kaizen", role: "admin", email: "kaizen" };
-        sessionStorage.setItem(AUTH_KEY, JSON.stringify(user));
+        localStorage.setItem(AUTH_KEY, JSON.stringify(user));
         location.hash = "/admin";
         toast("Acesso de teste realizado.");
       } else {
@@ -1086,9 +1091,9 @@ function bindVideo() {
     persist();
   });
 }
-modal.addEventListener("submit", (e) => {
+modal.addEventListener("submit", async (e) => {
   e.preventDefault();
-  modalHandler?.(new FormData(e.target));
+  await modalHandler?.(new FormData(e.target));
 });
 modal.addEventListener("click", (e) => {
   if (e.target === modal) {
@@ -1108,7 +1113,7 @@ document.addEventListener("click", async (e) => {
   e.preventDefault();
   const { action, id, direction } = el.dataset;
   if (action === "logout") {
-    sessionStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(AUTH_KEY);
     location.hash = "/login";
     return;
   }
@@ -1286,8 +1291,15 @@ document.addEventListener("click", async (e) => {
     const c = state.clients.find((v) => v.id === id);
     c.status = c.status === "inactive" ? "active" : "inactive";
     persist();
+    void apiRequest("client.save", { method:"POST", body:JSON.stringify({id:/^\d+$/.test(String(id))?Number(id):0,name:c.name,company:c.company,email:c.email,password:"",status:c.status,expires_at:c.expires||null}) });
     render();
     toast("Status atualizado na demonstração.");
+    return;
+  }
+  if (action === "delete-client") {
+    const c = state.clients.find((v) => v.id === id);
+    if (!c) return;
+    openModal("Excluir conta?", "<p>Esta ação remove o acesso e o progresso do cliente permanentemente.</p><form>" + modalFooter("Excluir definitivamente") + "</form>", async () => { await apiRequest("client.delete", { method:"POST", body:JSON.stringify({id:/^\d+$/.test(String(id))?Number(id):0}) }); state.clients = state.clients.filter(v => v.id !== id); persist(); modal.close(); location.hash="/admin/clientes"; render(); });
     return;
   }
   if (action === "publish-course") {

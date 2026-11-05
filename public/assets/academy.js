@@ -243,17 +243,16 @@ export function createAcademy(ctx) {
   function tabContent(c, l) {
     if (lessonTab === "materials")
       return `<h2>Materiais desta aula</h2>${
-        materials
-          .filter((v) => v.course === c.id)
+        (l.materials || []).map((id) => state.files.find((v) => String(v.id) === String(id))).filter(Boolean)
           .map(
             (v) =>
-              `<div class="material-row"><span class="file-icon">${icon("file")}</span><div><strong>${esc(v.title)}</strong><small>${v.ext.toUpperCase()} • Material ilustrativo</small></div><button class="icon-btn" data-action="download" data-id="${v.id}" aria-label="Baixar ${esc(v.title)}">${icon("download")}</button></div>`,
+              `<div class="material-row"><span class="file-icon">${icon("file")}</span><div><strong>${esc(v.name)}</strong><small>${esc(v.type || "Arquivo")} • Material de apoio</small></div><a class="icon-btn" href="media.php?id=${encodeURIComponent(v.id)}&lesson=${encodeURIComponent(l.id)}" target="_blank" rel="noopener" aria-label="Baixar ${esc(v.name)}">${icon("download")}</a></div>`,
           )
           .join("") || "<p>Nenhum material disponível para esta aula.</p>"
       }`;
     if (lessonTab === "notes")
       return `<label for="lesson-notes">Suas anotações</label><textarea id="lesson-notes" data-lesson-id="${l.id}" rows="6" maxlength="12000" placeholder="Registre os pontos importantes desta aula…">${esc(state.notes[l.id] || "")}</textarea><div class="academy-notes-footer"><span id="notes-status" role="status">Anotações salvas apenas neste navegador.</span><button class="btn btn-primary" data-action="save-note" data-id="${l.id}">Salvar anotação ${icon("check")}</button></div>`;
-    return `<h2>Sobre esta aula</h2><p>Nesta etapa, vamos conhecer ${esc(l.title.toLocaleLowerCase("pt-BR"))}. O objetivo é ajudar você a encontrar as informações certas e seguir com mais segurança na sua parceria com o escritório.</p><p>Assista ao conteúdo no seu ritmo e marque a aula como concluída quando terminar. Os materiais de apoio e suas anotações estão nas abas ao lado.</p><div class="academy-editorial-note">Conteúdo ilustrativo para revisão visual. Os textos e vídeos oficiais serão cadastrados pelo escritório.</div>`;
+    return `<h2>Sobre esta aula</h2>${l.body ? `<div class="lesson-description">${esc(l.body).replace(/\n/g,"<br>")}</div>` : "<p>Esta aula ainda não possui uma descrição cadastrada.</p>"}`;
   }
   function lesson(id) {
     const info = lessonInfo(id);
@@ -268,7 +267,7 @@ export function createAcademy(ctx) {
       idx = ls.findIndex((v) => v.id === id),
       done = state.completed.includes(id),
       video = mediaUrls.get(id) || (l.media_id ? `media.php?id=${encodeURIComponent(l.media_id)}&lesson=${encodeURIComponent(l.id)}` : ""),
-      adminPreview = (() => { try { return ["admin", "office_admin", "agency_admin"].includes(JSON.parse(sessionStorage.getItem("onboarding-user-v2") || "null")?.role); } catch { return false; } })(),
+      adminPreview = (() => { try { return ["admin", "office_admin", "agency_admin"].includes(JSON.parse(localStorage.getItem("onboarding-user-v2") || "null")?.role); } catch { return false; } })(),
       saved = state.saved.includes(id),
       rating = state.ratings[id] || 0;
     return `<section class="academy-classroom"><a class="back-link" href="#/inicio">${icon("left")} Voltar para os cursos</a><div class="classroom-title"><div><span class="eyebrow">${esc(m.title)} • Aula ${idx + 1}</span><h1 tabindex="-1">${esc(l.title)}</h1></div><button class="icon-btn syllabus-toggle" data-action="toggle-outline" aria-expanded="${outlineOpen}" aria-label="${outlineOpen ? "Ocultar" : "Mostrar"} conteúdo do curso">${icon("book")}</button></div><div class="academy-video">${video ? `<video id="lesson-video" data-lesson-id="${l.id}" src="${esc(video)}" controls playsinline preload="metadata" aria-label="Vídeo selecionado para prévia"></video>` : `<div class="academy-video-placeholder"><span class="academy-player-brand">${esc(b.name)}</span><div><span class="eyebrow">${esc(c.title)}</span><h2>${esc(l.title)}</h2><button class="academy-play-button" data-action="preview-video" data-id="${l.id}" aria-label="Selecionar vídeo para prévia">${icon("play")}</button><small>Selecionar vídeo local para testar o player</small></div><div class="academy-player-bottom">${icon("play")} <span>00:00 / ${esc(l.duration)}</span><i></i>${icon("settings")} ${icon("grid")}</div></div>`}</div><div class="classroom-toolbar"><div class="classroom-rating" role="group" aria-label="Avaliar aula"><span>Avaliar aula</span>${[1, 2, 3, 4, 5].map((n) => `<button aria-label="Avaliar com ${n} ${n === 1 ? "estrela" : "estrelas"}" aria-pressed="${rating === n}" data-action="rate-lesson" data-id="${id}" data-rating="${n}" class="${rating >= n ? "selected" : ""}">★</button>`).join("")}</div><div class="classroom-actions"><button class="btn academy-outline-btn ${saved ? "saved" : ""}" data-action="save-lesson" data-id="${id}" aria-pressed="${saved}">${icon("book")} ${saved ? "Aula salva" : "Salvar aula"}</button><button class="btn academy-outline-btn ${done ? "completed" : ""}" data-action="complete" data-id="${id}">${icon("check")} ${done ? "Aula concluída" : "Concluir aula"}</button>${idx ? `<a class="icon-btn" aria-label="Aula anterior" href="#/aula/${ls[idx - 1].id}">${icon("left")}</a>` : '<button class="icon-btn" disabled aria-label="Aula anterior">' + icon("left") + "</button>"}${idx < ls.length - 1 ? `<a class="icon-btn" aria-label="Próxima aula" href="#/aula/${ls[idx + 1].id}" ${lessonUnlocked(c, ls[idx + 1]) ? "" : 'data-action="locked"'}>${icon("arrow")}</a>` : `<a class="icon-btn" aria-label="Voltar ao curso" href="${courseHref(c)}">${icon("check")}</a>`}</div></div><div class="classroom-tabs" role="tablist" aria-label="Informações da aula">${[

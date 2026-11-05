@@ -10,8 +10,8 @@ $s=db()->prepare('SELECT * FROM media_assets WHERE id=? AND status=?');$s->execu
 if(!$asset){http_response_code(404);exit('Arquivo não encontrado.');}
 if ($user['role'] === 'client') {
   $lessonId=(int)($_GET['lesson']??0);
-  $check=db()->prepare("SELECT l.id FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id WHERE l.id=? AND l.media_id=? AND l.status='published' AND m.status='published' AND c.status='published'");
-  $check->execute([$lessonId,$id]);
+  $check=db()->prepare("SELECT l.id FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id WHERE l.id=? AND (l.media_id=? OR EXISTS (SELECT 1 FROM lesson_materials lm WHERE lm.lesson_id=l.id AND lm.media_id=?)) AND l.status='published' AND m.status='published' AND c.status='published'");
+  $check->execute([$lessonId,$id,$id]);
   if (!$check->fetchColumn()) { http_response_code(403); exit('Acesso negado.'); }
 }
 $path=APP_ROOT.'/storage/uploads/'.$asset['storage_key'];
