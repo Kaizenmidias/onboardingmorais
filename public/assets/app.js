@@ -700,6 +700,11 @@ function render() {
         const note = el.parentElement?.querySelector('small');
         if (note) note.textContent = 'O vídeo desta aula ainda não foi disponibilizado.';
       });
+      const currentRole = (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null')?.role || ''; } catch { return ''; } })();
+      if (['admin', 'office_admin', 'agency_admin'].includes(currentRole)) {
+        const topbar = app.querySelector('.academy-topbar');
+        if (topbar && !topbar.querySelector('.academy-admin-link')) topbar.insertAdjacentHTML('beforeend', '<a class="academy-profile academy-admin-link" href="#/admin">Painel administrativo</a>');
+      }
     }
   }
   bindForms();
