@@ -108,5 +108,5 @@ try {
     }
     json_response(['error'=>'Ação não encontrada.'],404);
 } catch (Throwable $e) {
-    error_log($e->getMessage()); json_response(['error'=>'Não foi possível concluir a operação.'],500);
+    error_log($e->getMessage()); json_response(['error'=>'Não foi possível concluir a operação: '.$e->getMessage()],500);
 }
