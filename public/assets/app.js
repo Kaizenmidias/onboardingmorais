@@ -182,7 +182,7 @@ async function loadBackend() {
     }
   }
   if (Array.isArray(data.courses)) {
-    state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
+    state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), coverImage: course.cover_image || course.coverImage || "", landscapeImage: course.landscape_image || course.landscapeImage || "", sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
   }
   if (Array.isArray(data.media)) {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
@@ -820,11 +820,11 @@ function openMediaPicker({ accept = "all", multiple = false, onSelect }) {
   drop?.addEventListener("click", () => pickerInput?.click());
   modal.addEventListener("click", (e) => { const item = e.target.closest("[data-picker-id]"); if (!item || !modal.open) return; const id = String(item.dataset.pickerId); selected = multiple ? (selected.includes(id) ? selected.filter((v) => v !== id) : [...selected, id]) : [id]; refresh(); }, { once: false });
 }
-function courseForm(id) {
+function courseForm(id, preset = {}) {
   const c = state.courses.find((c) => c.id === id) || {};
   const images = {
-    coverImage: c.coverImage || "",
-    landscapeImage: c.landscapeImage || "",
+    coverImage: preset.coverImage ?? c.coverImage ?? "",
+    landscapeImage: preset.landscapeImage ?? c.landscapeImage ?? "",
   };
   openModal(
     id ? "Configurar trilha" : "Nova trilha de conhecimento",
@@ -909,17 +909,17 @@ function courseForm(id) {
   modal.querySelectorAll("[data-open-course-media]").forEach((button) =>
     button.addEventListener("click", () => {
       const key = button.dataset.openCourseMedia;
-      openMediaPicker({ accept: "image", onSelect: ([file]) => { images[key] = mediaUrl(file); courseForm(id); } });
+      openMediaPicker({ accept: "image", onSelect: ([file]) => { images[key] = mediaUrl(file); courseForm(id, images); } });
     }),
   );
 }
-function lessonForm(courseId, moduleId, id) {
+function lessonForm(courseId, moduleId, id, preset = {}) {
   const info = id ? lessonInfo(id) : null,
     c = info?.c || state.courses.find((v) => v.id === courseId),
     m = info?.m || c?.modules.find((v) => v.id === moduleId),
     l = info?.l || {};
-  let lessonMediaId = l.media_id || "";
-  let lessonMaterials = Array.isArray(l.materials) ? [...l.materials] : [];
+  let lessonMediaId = preset.media_id ?? l.media_id ?? "";
+  let lessonMaterials = Array.isArray(preset.materials) ? [...preset.materials] : (Array.isArray(l.materials) ? [...l.materials] : []);
   let lessonUploadPromise = Promise.resolve();
   if (!m) return;
   openModal(
@@ -942,8 +942,8 @@ function lessonForm(courseId, moduleId, id) {
       toast("Aula salva no portal.");
     },
   );
-  $("#choose-lesson-video")?.addEventListener("click", () => openMediaPicker({ accept: "video", onSelect: ([file]) => { lessonMediaId = String(file.id); lessonForm(courseId, moduleId, id); } }));
-  $("#choose-lesson-materials")?.addEventListener("click", () => openMediaPicker({ accept: "all", multiple: true, onSelect: (files) => { lessonMaterials = files.filter(f => !String(f.type || "").startsWith("video/")).map(f => String(f.id)); lessonForm(courseId, moduleId, id); } }));
+  $("#choose-lesson-video")?.addEventListener("click", () => openMediaPicker({ accept: "video", onSelect: ([file]) => { lessonMediaId = String(file.id); lessonForm(courseId, moduleId, id, { media_id: lessonMediaId, materials: lessonMaterials }); } }));
+  $("#choose-lesson-materials")?.addEventListener("click", () => openMediaPicker({ accept: "all", multiple: true, onSelect: (files) => { lessonMaterials = files.filter(f => !String(f.type || "").startsWith("video/")).map(f => String(f.id)); lessonForm(courseId, moduleId, id, { media_id: lessonMediaId, materials: lessonMaterials }); } }));
 }
 function download(name, content, type = "text/plain;charset=utf-8") {
   const blob = new Blob(["\ufeff" + content], { type }),
