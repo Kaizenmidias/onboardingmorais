@@ -190,7 +190,7 @@ export function createAcademy(ctx) {
       )
       .join(
         "",
-      )}<a href="#/salvos">${icon("book")}Aulas salvas</a></nav><div class="academy-drawer-bottom"><a href="#/perfil">${icon("user")}Minha conta</a><a href="#/login">${icon("logout")}Sair da prévia</a></div></aside>`;
+      )}<a href="#/salvos">${icon("book")}Aulas salvas</a></nav><div class="academy-drawer-bottom"><a href="#/perfil">${icon("user")}Minha conta</a><a href="#/login">${icon("logout")}Sair</a></div></aside>`;
   }
   function shell(content, section) {
     const theater = route()[0] === "aula",
