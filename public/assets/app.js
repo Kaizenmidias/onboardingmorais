@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=identity-2";
+import { createAcademy } from "./academy.js?v=identity-5";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
@@ -151,8 +151,8 @@ async function apiRequest(action, options = {}) {
       headers: { ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }), ...(method !== "GET" ? { "X-CSRF-Token": apiCsrf } : {}), ...(options.headers || {}) },
     });
     const data = await response.json().catch(() => null);
-    if (response.status === 419) { apiCsrf = ""; return null; }
-    return response.ok ? data : null;
+    if (response.status === 419) { apiCsrf = ""; return data || { error: "Sessão expirada." }; }
+    return data;
   } catch { return null; }
 }
 let toastTimer;
@@ -449,7 +449,7 @@ function adminClients() {
 function clientDetail(id) {
   const c = state.clients.find((c) => c.id === id);
   if (!c) return notFound();
-  return `<a class="back-link" href="#/admin/clientes">${icon("left")} Voltar para clientes</a>${heading("ACOMPANHAMENTO INDIVIDUAL", c.name, c.company, `<button class="btn btn-secondary" data-action="client-form" data-id="${c.id}">${icon("edit")} Editar cadastro</button>`)}<div class="content-columns"><section><div class="panel client-profile"><div class="section-title"><h2>Dados do cliente</h2>${badge(c.status === "active" ? "Ativo" : c.status === "invited" ? "Convite pendente" : "Inativo", c.status === "active" ? "success" : "orange")}</div><dl class="data-grid"><div><dt>E-mail</dt><dd>${esc(c.email)}</dd></div><div><dt>CNPJ</dt><dd>${esc(c.cnpj || "Não informado na prévia")}</dd></div><div><dt>Grupo</dt><dd>${esc(c.group)}</dd></div><div><dt>Última atividade</dt><dd>${esc(c.last)}</dd></div><div><dt>Validade do acesso</dt><dd>${esc(c.expires || "Sem prazo definido")}</dd></div><div><dt>Telefone</dt><dd>${esc(c.phone || "Não informado")}</dd></div></dl></div><div class="section-title"><h2>Trilhas liberadas</h2></div>${
+  return `<a class="back-link" href="#/admin/clientes">${icon("left")} Voltar para clientes</a>${heading("ACOMPANHAMENTO INDIVIDUAL", c.name, c.company, `<button class="btn btn-secondary" data-action="client-form" data-id="${c.id}">${icon("edit")} Editar cadastro</button>`)}<div class="content-columns"><section><div class="panel client-profile"><div class="section-title"><h2>Dados do cliente</h2>${badge(c.status === "active" ? "Ativo" : c.status === "invited" ? "Convite pendente" : "Inativo", c.status === "active" ? "success" : "orange")}</div><dl class="data-grid"><div><dt>E-mail</dt><dd>${esc(c.email)}</dd></div><div><dt>CNPJ</dt><dd>${esc(c.cnpj || "Não informado na portal")}</dd></div><div><dt>Grupo</dt><dd>${esc(c.group)}</dd></div><div><dt>Última atividade</dt><dd>${esc(c.last)}</dd></div><div><dt>Validade do acesso</dt><dd>${esc(c.expires || "Sem prazo definido")}</dd></div><div><dt>Telefone</dt><dd>${esc(c.phone || "Não informado")}</dd></div></dl></div><div class="section-title"><h2>Trilhas liberadas</h2></div>${
     state.courses
       .filter((v) => c.courses.includes(v.id))
       .map(
@@ -477,7 +477,7 @@ function adminContent() {
 function courseEditor(id) {
   const c = state.courses.find((c) => c.id === id);
   if (!c) return notFound();
-  return `<a class="back-link" href="#/admin/conteudos">${icon("left")} Voltar para conteúdos</a>${heading("EDITOR DE CONTEÚDO", c.title, "Organize módulos e aulas da sua trilha.", `<button class="btn btn-secondary" data-action="course-form" data-id="${c.id}">${icon("settings")} Configurar trilha</button>`)}<div class="content-columns"><section>${outline(c, "", true)}<button class="btn btn-secondary" data-action="add-module" data-id="${c.id}">${icon("plus")} Adicionar módulo</button></section><aside class="panel course-summary"><h2>Publicação</h2><p>${esc(c.description)}</p>${badge(c.status === "published" ? "Publicada" : "Rascunho", c.status === "published" ? "success" : "neutral")}<p>${c.sequence ? "As aulas seguem uma sequência." : "O cliente pode explorar as aulas livremente."}</p><button class="btn btn-primary full" data-action="publish-course" data-id="${c.id}">${c.status === "published" ? "Mover para rascunho" : "Publicar na prévia"}</button>${c.status === "published" ? link("/curso/" + c.id, `${icon("eye")} Ver como cliente`, "btn btn-secondary full") : ""}<button class="btn btn-quiet full" data-action="archive-course" data-id="${c.id}">${icon("trash")} Remover da demonstração</button></aside></div>`;
+  return `<a class="back-link" href="#/admin/conteudos">${icon("left")} Voltar para conteúdos</a>${heading("EDITOR DE CONTEÚDO", c.title, "Organize módulos e aulas da sua trilha.", `<button class="btn btn-secondary" data-action="course-form" data-id="${c.id}">${icon("settings")} Configurar trilha</button>`)}<div class="content-columns"><section>${outline(c, "", true)}<button class="btn btn-secondary" data-action="add-module" data-id="${c.id}">${icon("plus")} Adicionar módulo</button></section><aside class="panel course-summary"><h2>Publicação</h2><p>${esc(c.description)}</p>${badge(c.status === "published" ? "Publicada" : "Rascunho", c.status === "published" ? "success" : "neutral")}<p>${c.sequence ? "As aulas seguem uma sequência." : "O cliente pode explorar as aulas livremente."}</p><button class="btn btn-primary full" data-action="publish-course" data-id="${c.id}">${c.status === "published" ? "Mover para rascunho" : "Publicar"}</button>${c.status === "published" ? link("/curso/" + c.id, `${icon("eye")} Ver como cliente`, "btn btn-secondary full") : ""}<button class="btn btn-quiet full" data-action="archive-course" data-id="${c.id}">${icon("trash")} Remover</button></aside></div>`;
 }
 function adminGroups() {
   const groups = [
@@ -501,7 +501,7 @@ function adminGroups() {
       )
       .join(
         "",
-      )}</div><div class="inline-note">${icon("help")} Na prévia, altere o grupo no cadastro do cliente. Concessões automáticas por grupo serão conectadas ao backend.</div>`
+      )}</div><div class="inline-note">${icon("help")} Na portal, altere o grupo no cadastro do cliente. Concessões automáticas por grupo serão conectadas ao backend.</div>`
   );
 }
 function adminMedia() {
@@ -509,10 +509,10 @@ function adminMedia() {
     heading(
       "TUDO EM SEU LUGAR",
       "Biblioteca de mídia",
-      "Uma prévia dos arquivos que vão compor suas aulas.",
+      "Uma portal dos arquivos que vão compor suas aulas.",
       `<label class="btn btn-primary file-button">${icon("upload")} Selecionar arquivos<input id="media-input" type="file" multiple accept="video/mp4,video/webm,video/quicktime,video/x-m4v,image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt"></label>`,
     ) +
-    `<div class="upload-zone">${icon("upload")}<h2>Biblioteca de conteúdos</h2><p>Envie vídeos e materiais de apoio para reutilizá-los nas aulas.</p><small>Os arquivos enviados ficam disponíveis para seleção na criação das aulas.</small></div><section class="panel"><div class="section-title"><h2>Arquivos da biblioteca</h2>${badge(state.files.length + " arquivos")}</div>${state.files.length ? state.files.map((f) => `<div class="material-row"><span class="file-icon">${icon(f.type.startsWith("video") ? "play" : "file")}</span><div><strong>${esc(f.name)}</strong><small>${formatBytes(f.size)} • ${f.status === "ready" ? "Disponível no servidor" : "Processando"}</small></div><button class="icon-btn" data-action="open-file" data-id="${f.id}" aria-label="Visualizar ${esc(f.name)}">${icon("eye")}</button><button class="icon-btn" data-action="remove-file" data-id="${f.id}" aria-label="Remover ${esc(f.name)}">${icon("trash")}</button></div>`).join("") : empty("Sua biblioteca está vazia", "Envie o primeiro vídeo ou material de apoio.")}</section>`
+    `<div class="upload-zone" id="media-dropzone" tabindex="0" role="button" aria-label="Adicionar arquivos arrastando ou selecionando">${icon("upload")}<h2>Biblioteca de conteúdos</h2><p>Arraste vídeos e materiais de apoio para esta área ou use o botão “Selecionar arquivos”.</p><small>Os arquivos enviados ficam disponíveis para seleção na criação das aulas.</small></div><section class="panel"><div class="section-title"><h2>Arquivos da biblioteca</h2>${badge(state.files.length + " arquivos")}</div>${state.files.length ? state.files.map((f) => `<div class="material-row"><span class="file-icon">${icon(f.type.startsWith("video") ? "play" : "file")}</span><div><strong>${esc(f.name)}</strong><small>${formatBytes(f.size)} • ${f.status === "ready" ? "Disponível no servidor" : "Processando"}</small></div><button class="icon-btn" data-action="open-file" data-id="${f.id}" aria-label="Visualizar ${esc(f.name)}">${icon("eye")}</button><button class="icon-btn" data-action="remove-file" data-id="${f.id}" aria-label="Remover ${esc(f.name)}">${icon("trash")}</button></div>`).join("") : empty("Sua biblioteca está vazia", "Envie o primeiro vídeo ou material de apoio.")}</section>`
   );
 }
 function adminCommunication() {
@@ -560,7 +560,7 @@ function customization() {
 }
 function brandForm() {
   const b = brand();
-  return `<h2>Uma experiência com a sua marca.</h2><p class="muted">As alterações aparecem em todas as telas desta prévia.</p><form id="brand-form"><div class="logo-upload"><div class="logo-sample">${logo()}</div><div><strong>Logo do escritório</strong><p>PNG, JPEG ou WebP • até 1 MB</p><label class="btn btn-secondary file-button">${icon("upload")} Alterar logo<input id="logo-input" type="file" accept="image/png,image/jpeg,image/webp"></label></div></div><div class="form-grid"><label>Nome do escritório<input name="name" value="${esc(b.name)}" required maxlength="80"></label><label>Nome da plataforma<input name="portal" value="${esc(b.portal)}" required maxlength="50"></label><label>Cor de destaque<div class="color-control"><input name="primary" type="color" value="${esc(b.primary)}"><span>${esc(b.primary)}</span></div></label><label>Cor principal<div class="color-control"><input name="navy" type="color" value="${esc(b.navy)}"><span>${esc(b.navy)}</span></div></label><label>Tipografia<select name="font"><option ${b.font === "Manrope" ? "selected" : ""}>Manrope</option><option ${b.font === "Arial" ? "selected" : ""}>Arial</option></select></label><label>E-mail de atendimento<input type="email" name="email" value="${esc(b.email)}" required></label><label>WhatsApp com DDI e DDD<input name="whatsapp" value="${esc(b.whatsapp)}" required pattern="[0-9+() .-]{10,22}"></label></div><div class="form-footer"><span>${icon("shield")} Configuração desta demonstração</span><button type="submit" class="btn btn-primary">Salvar identidade ${icon("check")}</button></div></form>`;
+  return `<h2>Uma experiência com a sua marca.</h2><p class="muted">As alterações aparecem em todas as telas desta portal.</p><form id="brand-form"><div class="logo-upload"><div class="logo-sample">${logo()}</div><div><strong>Logo do escritório</strong><p>PNG, JPEG ou WebP • até 1 MB</p><label class="btn btn-secondary file-button">${icon("upload")} Alterar logo<input id="logo-input" type="file" accept="image/png,image/jpeg,image/webp"></label></div></div><div class="form-grid"><label>Nome do escritório<input name="name" value="${esc(b.name)}" required maxlength="80"></label><label>Nome da plataforma<input name="portal" value="${esc(b.portal)}" required maxlength="50"></label><label>Cor de destaque<div class="color-control"><input name="primary" type="color" value="${esc(b.primary)}"><span>${esc(b.primary)}</span></div></label><label>Cor principal<div class="color-control"><input name="navy" type="color" value="${esc(b.navy)}"><span>${esc(b.navy)}</span></div></label><label>Tipografia<select name="font"><option ${b.font === "Manrope" ? "selected" : ""}>Manrope</option><option ${b.font === "Arial" ? "selected" : ""}>Arial</option></select></label><label>E-mail de atendimento<input type="email" name="email" value="${esc(b.email)}" required></label><label>WhatsApp com DDI e DDD<input name="whatsapp" value="${esc(b.whatsapp)}" required pattern="[0-9+() .-]{10,22}"></label></div><div class="form-footer"><span>${icon("shield")} Configuração desta portal</span><button type="submit" class="btn btn-primary">Salvar identidade ${icon("check")}</button></div></form>`;
 }
 function textsForm() {
   return `<h2>Seu jeito de dar boas-vindas.</h2><p class="muted">Edite mensagens, títulos e nomes da navegação.</p><form id="texts-form">${Object.entries(
@@ -575,7 +575,7 @@ function textsForm() {
     )}<button class="btn btn-primary" type="submit">Salvar textos ${icon("check")}</button></form>`;
 }
 function blocksForm() {
-  return `<h2>Uma página no seu ritmo.</h2><p class="muted">Ative, desative e reordene as seções da página inicial.</p><div class="block-list">${state.settings.blocks.map((b, i) => `<div class="block-row"><span class="block-grip">⋮⋮</span><strong>${esc(b.label)}</strong><button class="icon-btn" data-action="move-block" data-id="${b.id}" data-direction="up" ${i === 0 ? "disabled" : ""} aria-label="Mover ${esc(b.label)} para cima">↑</button><button class="icon-btn" data-action="move-block" data-id="${b.id}" data-direction="down" ${i === state.settings.blocks.length - 1 ? "disabled" : ""} aria-label="Mover ${esc(b.label)} para baixo">↓</button><button class="switch ${b.enabled ? "on" : ""}" role="switch" aria-checked="${b.enabled}" aria-label="Exibir ${esc(b.label)}" data-action="toggle-block" data-id="${b.id}"><span></span></button></div>`).join("")}</div><div class="inline-note">${icon("check")} Alterações aplicadas automaticamente nesta prévia.</div>`;
+  return `<h2>Uma página no seu ritmo.</h2><p class="muted">Ative, desative e reordene as seções da página inicial.</p><div class="block-list">${state.settings.blocks.map((b, i) => `<div class="block-row"><span class="block-grip">⋮⋮</span><strong>${esc(b.label)}</strong><button class="icon-btn" data-action="move-block" data-id="${b.id}" data-direction="up" ${i === 0 ? "disabled" : ""} aria-label="Mover ${esc(b.label)} para cima">↑</button><button class="icon-btn" data-action="move-block" data-id="${b.id}" data-direction="down" ${i === state.settings.blocks.length - 1 ? "disabled" : ""} aria-label="Mover ${esc(b.label)} para baixo">↓</button><button class="switch ${b.enabled ? "on" : ""}" role="switch" aria-checked="${b.enabled}" aria-label="Exibir ${esc(b.label)}" data-action="toggle-block" data-id="${b.id}"><span></span></button></div>`).join("")}</div><div class="inline-note">${icon("check")} Alterações aplicadas automaticamente nesta portal.</div>`;
 }
 function operations() {
   return (
@@ -584,7 +584,7 @@ function operations() {
       "Configurações do ambiente",
       "Visão técnica para acompanhar as próximas etapas da instalação.",
     ) +
-    `<section class="panel"><h2>Ambiente informado</h2><dl class="data-grid"><div><dt>Domínio de referência</dt><dd>onboarding.kaizenmidias.com</dd></div><div><dt>Hospedagem atual</dt><dd>aaPanel • informado pelo responsável</dd></div><div><dt>PHP de destino</dt><dd>8.4 • informado pelo responsável</dd></div><div><dt>Versão desta entrega</dt><dd>0.2.0 • prévia visual</dd></div></dl><div class="inline-note">${icon("help")} Dados de referência. Esta tela não inspeciona nem se conecta à hospedagem.</div></section><div class="operations-grid">${[
+    `<section class="panel"><h2>Ambiente informado</h2><dl class="data-grid"><div><dt>Domínio de referência</dt><dd>onboarding.kaizenmidias.com</dd></div><div><dt>Hospedagem atual</dt><dd>aaPanel • informado pelo responsável</dd></div><div><dt>PHP de destino</dt><dd>8.4 • informado pelo responsável</dd></div><div><dt>Versão desta entrega</dt><dd>0.2.0 • portal visual</dd></div></dl><div class="inline-note">${icon("help")} Dados de referência. Esta tela não inspeciona nem se conecta à hospedagem.</div></section><div class="operations-grid">${[
       ["lock", "Autenticação e permissões"],
       ["folder", "Mídia privada e upload retomável"],
       ["mail", "SMTP e convites"],
@@ -596,7 +596,7 @@ function operations() {
       )
       .join(
         "",
-      )}</div><button class="btn btn-secondary" data-action="reset-demo">Restaurar dados da demonstração</button>`
+      )}</div><button class="btn btn-secondary" data-action="reset-demo">Restaurar dados da portal</button>`
   );
 }
 function profilePage() {
@@ -607,7 +607,7 @@ function profilePage() {
     heading(
       "SEU ESPAÇO",
       "Minha conta",
-      "Informações do acesso demonstrativo.",
+      "Informações do acesso",
     ) +
     `<section class="panel profile-panel"><div class="profile-top">${avatar(profileName)}<div><h2>${esc(profileName)}</h2><p>${esc(user?.company || (isAdmin() ? "Administrador" : "Cliente"))}</p></div>${badge(isAdmin() ? "Administrador" : "Acesso ativo")}</div><dl class="data-grid"><div><dt>E-mail</dt><dd>${esc(profileEmail)}</dd></div><div><dt>Tipo de acesso</dt><dd>${isAdmin() ? "Administrador" : "Um acesso por empresa"}</dd></div><div><dt>Escritório responsável</dt><dd>${esc(brand().name)}</dd></div><div><dt>Atualizações cadastrais</dt><dd>Solicite à equipe do escritório.</dd></div></dl><div class="row-actions"><a class="btn btn-secondary" href="#/redefinir">Alterar senha</a>${contact("btn btn-dark")}</div></section>`
   );
@@ -689,7 +689,7 @@ function render() {
             "Privacidade e termos",
             "Espaço reservado para os documentos do escritório.",
           ) +
-          '<section class="panel"><h2>Sobre esta demonstração</h2><p>Esta prévia utiliza dados fictícios e salva alterações apenas neste navegador. Não há autenticação, banco de dados ou envio de e-mails.</p><p>O aviso de privacidade e os termos oficiais serão cadastrados e revisados pelo responsável pelo escritório antes da operação com clientes reais.</p></section>';
+          '<section class="panel"><h2>Sobre esta portal</h2><p>Esta portal utiliza dados cadastrados e salva alterações apenas neste navegador. Não há autenticação, banco de dados ou envio de e-mails.</p><p>O aviso de privacidade e os termos oficiais serão cadastrados e revisados pelo responsável pelo escritório antes da operação com clientes reais.</p></section>';
         section = "Privacidade";
       } else {
         const p = pages[root];
@@ -698,6 +698,26 @@ function render() {
       }
     }
     app.innerHTML = shell(content, section);
+    // O cabeçalho da área do cliente é montado por um módulo separado. Em
+    // sessões restauradas, esse módulo pode renderizar antes de o bootstrap
+    // expor o usuário atual. Revalida o perfil após a montagem e garante o
+    // atalho administrativo apenas para contas administrativas.
+    if (!isAdmin()) {
+      const sessionUser = window.__currentUser || storedUser;
+      const sessionRole = String(sessionUser?.role || "").toLowerCase();
+      const sessionEmail = String(sessionUser?.email || "").toLowerCase();
+      const canAccessAdmin = ["admin", "office_admin", "agency_admin"].includes(sessionRole) || [
+        "agenciakaizendesign@gmail.com",
+        "gildasiomorais@moraiscontabilidade.com",
+      ].includes(sessionEmail);
+      const actions = app.querySelector(".academy-topbar-actions");
+      if (canAccessAdmin && actions && !actions.querySelector(".academy-admin-link")) {
+        actions.insertAdjacentHTML(
+          "afterbegin",
+          `<a class="academy-admin-link" href="#/admin">${icon("settings")} Painel administrativo ${icon("arrow")}</a>`,
+        );
+      }
+    }
     if (window.__productionMode) {
       app.querySelectorAll('.demo-bar').forEach((el) => el.remove());
       app.querySelectorAll('.academy-footer small').forEach((el) => el.remove());
@@ -713,20 +733,20 @@ function render() {
 }
 function openModal(title, body, handler = null) {
   modalHandler = handler;
-  modal.innerHTML = `<div class="modal-header"><div><span class="eyebrow">PRÉVIA VISUAL</span><h2 id="modal-title">${esc(title)}</h2></div><button type="button" class="icon-btn" data-action="close-modal" aria-label="Fechar janela">${icon("close")}</button></div><div class="modal-body">${body}</div>`;
+  modal.innerHTML = `<div class="modal-header"><div><span class="eyebrow">PORTAL</span><h2 id="modal-title">${esc(title)}</h2></div><button type="button" class="icon-btn" data-action="close-modal" aria-label="Fechar janela">${icon("close")}</button></div><div class="modal-body">${body}</div>`;
   modal.showModal();
 }
 const input = (label, name, value = "", type = "text", attrs = "") =>
   `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" ${attrs}></label>`;
-const modalFooter = (label = "Salvar na demonstração") =>
+const modalFooter = (label = "Salvar") =>
   `<div class="modal-footer"><button class="btn btn-secondary" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="submit">${label} ${icon("check")}</button></div>`;
 function clientForm(id) {
   const c = state.clients.find((c) => c.id === id) || {};
   const accessPassword = !id ? input("Senha de acesso", "password", "", "password", 'required minlength="8" autocomplete="new-password"') : "";
   openModal(
     id ? "Editar cliente" : "Um novo começo para seu cliente",
-    `<form>${input("Nome do responsável", "name", c.name, "text", 'required maxlength="80"')}${input("Empresa", "company", c.company, "text", 'required maxlength="100"')}${input("E-mail", "email", c.email, "email", "required")}<div class="form-grid">${input("CNPJ (opcional nesta demonstração)", "cnpj", c.cnpj, "text", 'maxlength="18"')}${input("Telefone", "phone", c.phone, "tel")}${input("WhatsApp", "whatsapp", c.whatsapp, "tel")}${input("Grupo", "group", c.group || "Novos clientes")}${input("Expiração do acesso", "expires", c.expires, "date")}</div><fieldset><legend>Trilhas liberadas</legend>${state.courses.map((v) => `<label class="checkbox-label"><input type="checkbox" name="courses" value="${v.id}" ${(c.courses || ["primeiros-passos"]).includes(v.id) ? "checked" : ""}>${esc(v.title)}</label>`).join("")}</fieldset><p class="form-note">Cadastro de demonstração. Nenhum convite real será enviado.</p>${modalFooter()}</form>`,
-    (fd) => {
+    `<form>${input("Nome do responsável", "name", c.name, "text", 'required maxlength="80"')}${input("Empresa", "company", c.company, "text", 'required maxlength="100"')}${input("E-mail", "email", c.email, "email", "required")}<div class="form-grid">${input("CNPJ (opcional no portal)", "cnpj", c.cnpj, "text", 'maxlength="18"')}${input("Telefone", "phone", c.phone, "tel")}${input("WhatsApp", "whatsapp", c.whatsapp, "tel")}${input("Grupo", "group", c.group || "Novos clientes")}${input("Expiração do acesso", "expires", c.expires, "date")}</div><fieldset><legend>Trilhas liberadas</legend>${state.courses.map((v) => `<label class="checkbox-label"><input type="checkbox" name="courses" value="${v.id}" ${(c.courses || ["primeiros-passos"]).includes(v.id) ? "checked" : ""}>${esc(v.title)}</label>`).join("")}</fieldset><p class="form-note">Cadastro de portal. O convite será enviado ao salvar.</p>${modalFooter()}</form>`,
+    async (fd) => {
       const values = Object.fromEntries(fd);
       if (
         state.clients.some(
@@ -734,7 +754,7 @@ function clientForm(id) {
             v.id !== id && v.email.toLowerCase() === values.email.toLowerCase(),
         )
       )
-        return toast("Este e-mail já existe na demonstração.");
+        return toast("Este e-mail já existe no portal.");
       const value = {
         ...values,
         id: id || uid("cliente"),
@@ -749,7 +769,7 @@ function clientForm(id) {
       void apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, password: value.password || "", cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null }) });
       modal.close();
       render();
-      toast("Cadastro salvo na demonstração.");
+      toast("Cadastro salvo no portal.");
     },
   );
   if (!id) modal.querySelector(".form-grid")?.insertAdjacentHTML("beforebegin", accessPassword);
@@ -773,7 +793,7 @@ function courseForm(id) {
       )
       .join(
         "",
-      )}</select></label><fieldset><legend>Capas do curso</legend><p class="form-note">Opcional. Sem imagem, a prévia cria uma capa com o título do curso. PNG, JPEG ou WebP até 600 KB por imagem, guardados neste navegador.</p>${[
+      )}</select></label><fieldset><legend>Capas do curso</legend><p class="form-note">Opcional. Sem imagem, a portal cria uma capa com o título do curso. PNG, JPEG ou WebP até 600 KB por imagem, guardados neste navegador.</p>${[
       ["coverImage", "Capa vertical · proporção 2:3"],
       ["landscapeImage", "Capa horizontal · proporção 16:9"],
     ]
@@ -784,26 +804,31 @@ function courseForm(id) {
       .join(
         "",
       )}</fieldset><label class="checkbox-label"><input type="checkbox" name="sequence" ${c.sequence ? "checked" : ""}> Exigir conclusão das aulas em sequência</label>${modalFooter()}</form>`,
-    (fd) => {
+    async (fd) => {
       const v = {
         ...Object.fromEntries(fd),
         ...images,
         sequence: fd.has("sequence"),
       };
+      let savedCourse = c;
       if (id) Object.assign(c, v);
-      else
-        state.courses.push({
+      else {
+        savedCourse = {
           ...v,
           id: uid("curso"),
           icon: "compass",
           status: "draft",
           modules: [],
-        });
+        };
+        state.courses.push(savedCourse);
+      }
       persist();
-      void apiRequest("course.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, title: v.title, category: v.category, description: v.description, status: c.status || "draft", sequence_required: v.sequence }) });
+      const result = await apiRequest("course.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, title: v.title, category: v.category, description: v.description, status: savedCourse.status || "draft", sequence_required: v.sequence }) });
+      if (result?.id && !/^\d+$/.test(String(id || ""))) savedCourse.id = String(result.id);
       modal.close();
       render();
-      toast("Trilha salva na demonstração.");
+      if (!result?.id) return toast(result?.error || "Não foi possível salvar a trilha no banco.");
+      toast("Trilha salva no portal.");
     },
   );
   modal.querySelectorAll("[data-course-image]").forEach((field) =>
@@ -847,18 +872,23 @@ function lessonForm(courseId, moduleId, id) {
   if (!m) return;
   openModal(
     id ? "Editar aula" : "Adicionar aula",
-    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}${input("Duração (min:seg)", "duration", l.duration || "05:00", "text", 'required pattern="[0-9]{1,3}:[0-5][0-9]"')}<label>Descrição da aula<textarea name="body" rows="4" maxlength="12000" placeholder="Explique o que o aluno encontrará nesta aula">${esc(l.body || "")}</textarea></label><label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><label>Vídeo da aula<input id="lesson-video-file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mov"></label><p id="lesson-upload-status" class="form-note">Selecione um vídeo da biblioteca ou envie um novo arquivo.</p><label>Materiais de apoio da biblioteca<select id="lesson-materials" name="materials" multiple size="4">${state.files.filter(f => !String(f.type || "").startsWith("video/")).map(f => `<option value="${esc(f.id)}" ${lessonMaterials.includes(String(f.id)) ? "selected" : ""}>${esc(f.name)}</option>`).join("") || "<option disabled>Nenhum material disponível na biblioteca</option>"}</select></label><p class="form-note">Use Ctrl/Cmd para selecionar mais de um material.</p>${modalFooter("Salvar aula")}</form>`,
+    `<form>${input("Título da aula", "title", l.title, "text", 'required maxlength="120"')}<input type="hidden" name="duration" value="${esc(l.duration || "00:00")}"><label>Descrição da aula<textarea name="body" rows="4" maxlength="12000" placeholder="Explique o que o aluno encontrará nesta aula">${esc(l.body || "")}</textarea></label><label>Tipo de conteúdo<select name="kind"><option value="video">Videoaula</option><option value="text" ${l.kind === "text" ? "selected" : ""}>Texto e materiais</option></select></label><label>Vídeo da aula<input id="lesson-video-file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mov"></label><p id="lesson-upload-status" class="form-note">Selecione um vídeo da biblioteca ou envie um novo arquivo.</p><label>Materiais de apoio da biblioteca<select id="lesson-materials" name="materials" multiple size="4">${state.files.filter(f => !String(f.type || "").startsWith("video/")).map(f => `<option value="${esc(f.id)}" ${lessonMaterials.includes(String(f.id)) ? "selected" : ""}>${esc(f.name)}</option>`).join("") || "<option disabled>Nenhum material disponível na biblioteca</option>"}</select></label><label class="btn btn-secondary file-button">Enviar novo material<input id="lesson-material-file" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf,.csv,.xlsx,.docx,.vtt"></label><p id="lesson-material-status" class="form-note">Selecione materiais já existentes ou envie novos arquivos para a biblioteca.</p>${modalFooter("Salvar aula")}</form>`,
     async (fd) => {
       await lessonUploadPromise;
       const v = Object.fromEntries(fd);
       lessonMaterials = [...(modal.querySelector("#lesson-materials")?.selectedOptions || [])].map(o => o.value);
+      let savedLesson = l;
       if (id) Object.assign(l, v, { media_id: lessonMediaId });
-      else m.lessons.push({ ...v, media_id: lessonMediaId, id: uid("aula") });
+      else {
+        savedLesson = { ...v, media_id: lessonMediaId, id: uid("aula") };
+        m.lessons.push(savedLesson);
+      }
       persist();
-      void apiRequest("lesson.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, module_id: /^\d+$/.test(String(moduleId || "")) ? Number(moduleId) : 0, title: v.title, body: v.body || "", media_id: lessonMediaId || null, materials: lessonMaterials, duration_seconds: v.duration ? v.duration.split(":").reduce((a, n) => a * 60 + Number(n), 0) : 0, status: "published" }) });
+      const result = await apiRequest("lesson.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, module_id: /^\d+$/.test(String(moduleId || "")) ? Number(moduleId) : 0, title: v.title, body: v.body || "", media_id: lessonMediaId || null, materials: lessonMaterials, duration_seconds: v.duration ? v.duration.split(":").reduce((a, n) => a * 60 + Number(n), 0) : 0, status: "draft" }) });
+      if (result?.id && !/^\d+$/.test(String(id || ""))) savedLesson.id = String(result.id);
       modal.close();
       render();
-      toast("Aula salva na demonstração.");
+      toast("Aula salva no portal.");
     },
   );
   $("#lesson-video-file")?.addEventListener("change", (e) => {
@@ -874,6 +904,21 @@ function lessonForm(courseId, moduleId, id) {
         status.textContent = "Vídeo selecionado localmente. O vínculo será concluído após o servidor estar configurado.";
       }
     });
+  });
+  $("#lesson-material-file")?.addEventListener("change", async (e) => {
+    const status = $("#lesson-material-status");
+    for (const file of e.target.files || []) {
+      if (status) status.textContent = `Enviando ${file.name}...`;
+      const result = await uploadVideo(file);
+      if (result?.id) {
+        lessonMaterials.push(result.id);
+        const select = $("#lesson-materials");
+        const option = document.createElement("option");
+        option.value = result.id; option.textContent = file.name; option.selected = true;
+        select?.appendChild(option);
+        if (status) status.textContent = "Material enviado e selecionado para esta aula.";
+      }
+    }
   });
 }
 function download(name, content, type = "text/plain;charset=utf-8") {
@@ -938,7 +983,7 @@ function bindForms() {
       }
       const result = await apiRequest("login", { method: "POST", body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
       form.reset();
-      if (result?.user) { window.__currentUser = result.user; localStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
+      if (result?.user) { apiCsrf = result.csrf || apiCsrf; window.__currentUser = result.user; localStorage.setItem(AUTH_KEY, JSON.stringify(result.user)); location.hash = result.user.role === "client" ? "/inicio" : "/admin"; toast("Acesso realizado."); }
       else {
         $("#auth-message").textContent = "Login ou senha inválidos.";
       }
@@ -958,7 +1003,7 @@ function bindForms() {
     );
     persist();
     render();
-    toast("Identidade aplicada à demonstração.");
+    toast("Identidade aplicada à portal.");
   });
   $("#texts-form")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -968,13 +1013,13 @@ function bindForms() {
     );
     persist();
     render();
-    toast("Textos atualizados na demonstração.");
+    toast("Textos atualizados no portal.");
   });
   $("#notice-form")?.addEventListener("submit", (e) => {
     e.preventDefault();
     state.notices[0] = Object.fromEntries(new FormData(e.currentTarget));
     persist();
-    toast("Comunicado atualizado na demonstração.");
+    toast("Comunicado atualizado no portal.");
   });
   $("#notification-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1010,7 +1055,7 @@ function bindForms() {
       state.settings.brand.logo = reader.result;
       persist();
       render();
-      toast("Logo aplicada nesta demonstração.");
+      toast("Logo aplicada no portal.");
     };
     reader.readAsDataURL(f);
   });
@@ -1036,18 +1081,18 @@ function bindForms() {
           persist();
           applyBrand();
           void apiRequest("setting", { method: "POST", body: JSON.stringify({ key: "brand.favicon", value: reader.result }) });
-          toast("Favicon aplicado nesta demonstração.");
+          toast("Favicon aplicado no portal.");
         };
         reader.readAsDataURL(f);
       });
     }
   }
-  $("#media-input")?.addEventListener("change", (e) => {
-    for (const f of e.target.files) {
+  const processMediaFiles = (files) => {
+    for (const f of files) {
       const allowed =
         /\.(mp4|webm|mov|m4v|png|jpe?g|webp|pdf|csv|xlsx|docx|vtt)$/i.test(f.name);
       if (!allowed) {
-        toast("Arquivo não aceito nesta prévia: " + f.name);
+        toast("Arquivo não aceito nesta portal: " + f.name);
         continue;
       }
       const id = uid("arquivo");
@@ -1065,7 +1110,25 @@ function bindForms() {
     }
     persist();
     render();
-  });
+  };
+  $("#media-input")?.addEventListener("change", (e) => processMediaFiles(e.target.files));
+  const dropzone = $("#media-dropzone");
+  if (dropzone) {
+    ["dragenter", "dragover"].forEach((eventName) => dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add("is-dragging");
+    }));
+    ["dragleave", "drop"].forEach((eventName) => dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove("is-dragging");
+    }));
+    dropzone.addEventListener("drop", (e) => processMediaFiles(e.dataTransfer.files));
+    dropzone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#media-input")?.click(); }
+    });
+  }
 }
 async function uploadVideo(file) {
   const session = await apiRequest("session");
@@ -1073,7 +1136,7 @@ async function uploadVideo(file) {
   const started = await fetch("upload.php?action=start", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRF-Token": apiCsrf }, body: JSON.stringify({ name: file.name, size: file.size, mime: file.type }) });
   const created = started.ok ? await started.json() : null;
   if (!created?.id) {
-    toast("A prévia local foi mantida; não foi possível iniciar o upload no servidor.");
+    toast("A portal local foi mantida; não foi possível iniciar o upload no servidor.");
     return null;
   }
   const chunkSize = created.chunk_size || 8388608;
@@ -1171,7 +1234,7 @@ document.addEventListener("click", async (e) => {
     persist();
     void apiRequest("lesson.note", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,note:state.notes[id]}) });
     $("#notes-status").textContent = "Anotação salva neste navegador.";
-    toast("Anotação salva nesta demonstração.");
+    toast("Anotação salva no portal.");
     return;
   }
   if (action === "save-lesson") {
@@ -1222,7 +1285,7 @@ document.addEventListener("click", async (e) => {
     toast(
       state.completed.includes(id)
         ? "Mais uma etapa concluída. Seu progresso foi atualizado."
-        : "Conclusão desfeita nesta demonstração.",
+        : "Conclusão desfeita no portal.",
     );
     return;
   }
@@ -1285,17 +1348,17 @@ document.addEventListener("click", async (e) => {
     openModal(
       "Novo módulo",
       `<form>${input("Título do módulo", "title", "", "text", 'required maxlength="120"')}${modalFooter()}</form>`,
-      (fd) => {
-        state.courses
-          .find((c) => c.id === id)
-          .modules.push({
+      async (fd) => {
+        const course = state.courses.find((c) => c.id === id);
+        const module = {
             id: uid("modulo"),
             title: fd.get("title"),
             lessons: [],
-          });
+        };
+        course.modules.push(module);
         persist();
-        const createdCourse = state.courses.find((c) => c.id === id);
-        void apiRequest("module.save", { method: "POST", body: JSON.stringify({ id: 0, course_id: /^\d+$/.test(String(id)) ? Number(id) : 0, title: fd.get("title"), description: "", status: "published" }) });
+        const result = await apiRequest("module.save", { method: "POST", body: JSON.stringify({ id: 0, course_id: /^\d+$/.test(String(id)) ? Number(id) : 0, title: fd.get("title"), description: "", status: "draft" }) });
+        if (result?.id) module.id = String(result.id);
         modal.close();
         render();
         toast("Módulo adicionado.");
@@ -1313,7 +1376,7 @@ document.addEventListener("click", async (e) => {
     persist();
     void apiRequest("client.save", { method:"POST", body:JSON.stringify({id:/^\d+$/.test(String(id))?Number(id):0,name:c.name,company:c.company,email:c.email,password:"",status:c.status,expires_at:c.expires||null}) });
     render();
-    toast("Status atualizado na demonstração.");
+    toast("Status atualizado no portal.");
     return;
   }
   if (action === "delete-client") {
@@ -1330,6 +1393,9 @@ document.addEventListener("click", async (e) => {
     }
     c.status = c.status === "published" ? "draft" : "published";
     persist();
+    if (/^\d+$/.test(String(id))) {
+      void apiRequest("course.save", { method: "POST", body: JSON.stringify({ id: Number(id), title: c.title, category: c.category || "", description: c.description || "", status: c.status, sequence_required: c.sequence }) });
+    }
     render();
     return;
   }
@@ -1408,7 +1474,7 @@ document.addEventListener("click", async (e) => {
   }
   if (action === "export-clients") {
     const lines = [
-      ["Responsavel", "Empresa", "Email", "Status", "Progresso demonstrativo"],
+      ["Responsavel", "Empresa", "Email", "Status", "Progresso"],
       ...state.clients.map((c) => [
         c.name,
         c.company,
@@ -1418,7 +1484,7 @@ document.addEventListener("click", async (e) => {
       ]),
     ];
     download(
-      "clientes-demonstracao.csv",
+      "clientes.csv",
       lines.map((row) => row.map(csvSafe).join(";")).join("\r\n"),
       "text/csv;charset=utf-8",
     );
@@ -1432,14 +1498,14 @@ document.addEventListener("click", async (e) => {
     ][Number(id)];
     openModal(
       name,
-      `<div class="email-preview">${logo()}<h2>Olá, Mariana.</h2><p>${Number(id) === 0 ? "Seu escritório preparou um espaço para acompanhar sua jornada." : Number(id) === 1 ? "Este é o exemplo visual da mensagem de recuperação de acesso." : "Que tal dar o próximo passo na sua jornada?"}</p>${link(Number(id) === 0 ? "/convite" : Number(id) === 1 ? "/redefinir" : "/inicio", "Acessar meu portal " + icon("arrow"), "btn btn-primary")}<p class="form-note">Modelo demonstrativo. Nenhum e-mail foi enviado.</p></div>`,
+      `<div class="email-preview">${logo()}<h2>Olá, Mariana.</h2><p>${Number(id) === 0 ? "Seu escritório preparou um espaço para acompanhar sua jornada." : Number(id) === 1 ? "Este é o exemplo visual da mensagem de recuperação de acesso." : "Que tal dar o próximo passo na sua jornada?"}</p>${link(Number(id) === 0 ? "/convite" : Number(id) === 1 ? "/redefinir" : "/inicio", "Acessar meu portal " + icon("arrow"), "btn btn-primary")}<p class="form-note">Mensagem enviada pelo portal.</p></div>`,
     );
     return;
   }
   if (action === "reset-demo") {
     openModal(
-      "Restaurar a demonstração?",
-      `<p>As alterações feitas nesta prévia serão substituídas pelos exemplos iniciais. Arquivos do seu computador não serão alterados.</p><form>${modalFooter("Restaurar demonstração")}</form>`,
+      "Restaurar a portal?",
+      `<p>As alterações feitas nesta portal serão substituídas pelos exemplos iniciais. Arquivos do seu computador não serão alterados.</p><form>${modalFooter("Restaurar portal")}</form>`,
       () => {
         state = fresh();
         for (const url of mediaUrls.values()) URL.revokeObjectURL(url);
@@ -1506,3 +1572,4 @@ try {
   console.error("Falha ao inicializar o portal", error);
   if (app) app.innerHTML = `<div class="boot"><p>Não foi possível carregar a área. Atualize a página e tente novamente.</p></div>`;
 }
+
