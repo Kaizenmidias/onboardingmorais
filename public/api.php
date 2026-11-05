@@ -36,7 +36,7 @@ try {
         $media = db()->query("SELECT id,original_name,mime_type,file_size,status,created_at FROM media_assets WHERE status='ready' ORDER BY created_at DESC,id DESC")->fetchAll();
         $clients = [];
         if ($user && in_array($user['role'], ['agency_admin','office_admin'], true)) {
-            $clients = db()->query("SELECT id,name,company,email,cnpj,phone,whatsapp,status,expires_at,last_access_at FROM clients ORDER BY id DESC")->fetchAll();
+            $clients = db()->query("SELECT id,name,company,email,cnpj,phone,whatsapp,status,expires_at,NULL AS last_access_at FROM clients ORDER BY id DESC")->fetchAll();
         }
         json_response(['user'=>$user,'settings'=>$out,'courses'=>$courses,'clients'=>$clients,'media'=>$media,'csrf'=>csrf_token()]);
     }
@@ -108,5 +108,5 @@ try {
     }
     json_response(['error'=>'Ação não encontrada.'],404);
 } catch (Throwable $e) {
-    error_log($e->getMessage()); json_response(['error'=>'Não foi possível concluir a operação: '.$e->getMessage()],500);
+    error_log($e->getMessage()); json_response(['error'=>'Não foi possível concluir a operação.'],500);
 }
