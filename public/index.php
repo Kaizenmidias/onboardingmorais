@@ -20,9 +20,9 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-sr
     <title>Área do cliente · Morais Contabilidade</title>
     <link rel="icon" href="assets/brand/favicon.jpg">
     <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="assets/app.css">
-    <link rel="stylesheet" href="assets/academy.css">
-    <script type="module" src="assets/app.js?v=deploy-20261105k"></script>
+    <link rel="stylesheet" href="assets/app.css?v=layout-20261105b">
+    <link rel="stylesheet" href="assets/academy.css?v=layout-20261105b">
+    <script type="module" src="assets/app.js?v=deploy-20261105l"></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content" data-action="skip-main">Pular para o conteúdo</a>
