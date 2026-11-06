@@ -1583,6 +1583,14 @@
   object-fit: cover;
   position: absolute;
   inset: 0;
+  z-index: 0;
+}
+.custom-cover-gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, #08152ddd 0%, #0a172d55 34%, #0a172d2a 52%, #08152df2 100%);
 }
 @media (min-width: 1700px) {
   .academy-topbar {

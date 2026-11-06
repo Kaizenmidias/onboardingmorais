@@ -66,7 +66,7 @@ export function createAcademy(ctx) {
       ? chosen
       : "";
     const photo = c.id === "primeiros-passos";
-    return `<div class="academy-cover ${orientation} academy-tone-${esc(c.tone)} art-${esc(c.icon)} ${photo ? "with-photo" : ""} ${custom ? "custom-cover" : ""}">${custom ? `<img src="${esc(custom)}" alt="Capa de ${esc(c.title)}">` : `<span class="cover-grid-lines"></span><span class="academy-cover-brand">${esc(b.name)}<small>CONHECIMENTO QUE APROXIMA</small></span><div class="academy-art">${photo ? '<span class="course-photo"></span>' : svgArt(c)}</div><div class="academy-cover-title"><i></i><small>${esc(c.category)}</small><h3>${esc(c.title)}</h3><span>UMA JORNADA COM A SUA CONTABILIDADE</span></div>`}<span class="cover-access" aria-label="Acesso liberado">${icon("shield")}</span><span class="cover-hover-play">${icon("play")}</span></div>`;
+    return `<div class="academy-cover ${orientation} academy-tone-${esc(c.tone)} art-${esc(c.icon)} ${photo ? "with-photo" : ""} ${custom ? "custom-cover" : ""}">${custom ? `<img src="${esc(custom)}" alt="Capa de ${esc(c.title)}"><span class="custom-cover-gradient" aria-hidden="true"></span>` : `<span class="cover-grid-lines"></span><div class="academy-art">${photo ? '<span class="course-photo"></span>' : svgArt(c)}</div>`}<span class="academy-cover-brand">${esc(b.name)}<small>CONHECIMENTO QUE APROXIMA</small></span><div class="academy-cover-title"><i></i><small>${esc(c.category)}</small><h3>${esc(c.title)}</h3><span>UMA JORNADA COM A SUA CONTABILIDADE</span></div><span class="cover-access" aria-label="Acesso liberado">${icon("shield")}</span><span class="cover-hover-play">${icon("play")}</span></div>`;
   }
   function card(c, orientation = "portrait", direct = false) {
     const p = progress(c);
