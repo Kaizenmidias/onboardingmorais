@@ -143,7 +143,15 @@ try {
     if ($action === 'mail.test') {
         $user = admin_user(); require_method('POST'); check_csrf(); $i = json_input(); $mail = portal_mail_config();
         foreach (['host','port','encryption','user','pass'] as $field) if (array_key_exists($field, $i) && (string)$i[$field] !== '') $mail[$field] = $field === 'port' ? (int)$i[$field] : trim((string)$i[$field]);
-        $to = strtolower(trim((string)($i['to'] ?? ''))); $diagnostic = portal_mail_diagnostic($mail, $to); $result = $diagnostic['ok'] ? 'success' : 'error'; audit($user['id'], 'test_mail', 'mail', $to, $result, (string)($diagnostic['message'] ?? '')); json_response($diagnostic, $diagnostic['ok'] ? 200 : 422);
+        $to = strtolower(trim((string)($i['to'] ?? ''))); $diagnostic = portal_mail_diagnostic($mail, $to);
+        if ($diagnostic['ok']) {
+            // The successful test confirms these are the credentials the
+            // portal must use for recovery, invitations and notifications.
+            $save = static function (string $key, string $value) use ($user): void { db()->prepare('INSERT INTO settings(setting_key,setting_value,value_type,updated_at,updated_by) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),value_type=VALUES(value_type),updated_at=VALUES(updated_at),updated_by=VALUES(updated_by)')->execute([$key,$value,'string',now(),$user['id']]); };
+            foreach (['host'=>(string)$mail['host'],'port'=>(string)$mail['port'],'encryption'=>(string)$mail['encryption'],'user'=>(string)$mail['user'],'pass'=>(string)$mail['pass']] as $key=>$value) $save('mail.'.$key,$value);
+            $diagnostic['saved'] = true;
+        }
+        $result = $diagnostic['ok'] ? 'success' : 'error'; audit($user['id'], 'test_mail', 'mail', $to, $result, (string)($diagnostic['message'] ?? '')); json_response($diagnostic, $diagnostic['ok'] ? 200 : 422);
     }
     if ($action === 'setting') {
         $user=admin_user(); require_method('POST'); check_csrf(); $input=json_input(); $key=trim((string)($input['key']??'')); if(!preg_match('/^[a-z][a-z0-9_.-]{1,119}$/',$key))json_response(['error'=>'Chave inválida.'],422); $value=$input['value']??''; $type=is_array($value)||is_object($value)?'json':'string'; $stored=$type==='json'?json_encode($value,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES):(string)$value; db()->prepare('INSERT INTO settings(setting_key,setting_value,value_type,updated_at,updated_by) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),value_type=VALUES(value_type),updated_at=VALUES(updated_at),updated_by=VALUES(updated_by)')->execute([$key,$stored,$type,now(),$user['id']]); audit($user['id'],'update_setting','setting',$key); json_response(['ok'=>true,'key'=>$key,'value'=>$value]);
