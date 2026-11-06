@@ -116,8 +116,11 @@ const lessonInfo = (id) => {
 const nextLesson = (c) =>
   allLessons(c).find((l) => !state.completed.includes(l.id)) ||
   allLessons(c)[0];
-const route = () =>
-  (location.hash.slice(1) || "/inicio").split("/").filter(Boolean);
+const route = () => {
+  const hash = location.hash.slice(1) || "/inicio";
+  const path = hash.split("?")[0];
+  return path.split("/").filter(Boolean);
+};
 const uid = (prefix) => prefix + "-" + crypto.randomUUID();
 const isAdmin = () => route()[0] === "admin";
 const pct = () => {
@@ -558,7 +561,7 @@ function adminCommunication() {
       "Recados e orientações",
       "Mantenha as informações importantes no caminho do cliente.",
     ) +
-    `<div class="help-layout"><section class="panel"><div class="section-title"><h2>Comunicado da página inicial</h2></div><form id="notice-form"><label>Título<input name="title" value="${esc(state.notices[0]?.title)}" required maxlength="100"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="600">${esc(state.notices[0]?.body)}</textarea></label><button class="btn btn-primary" type="submit">Salvar comunicado ${icon("check")}</button></form></section><section class="panel"><h2>Enviar notificação aos clientes</h2><form id="notification-form"><label>Destinatário<select name="client_id"><option value="0">Todos os clientes ativos</option>${state.clients.filter(c=>c.status==='active').map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.company)}</option>`).join("")}</select></label><label>Assunto<input name="subject" required maxlength="160"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="4000"></textarea></label><button class="btn btn-primary" type="submit">Enviar notificação ${icon("mail")}</button><p id="notification-status" class="form-note"></p></form></section></div>`
+    `<div class="help-layout"><section class="panel"><div class="section-title"><h2>Comunicado da página inicial</h2></div><form id="notice-form"><label>Título<input name="title" value="${esc(state.notices[0]?.title)}" required maxlength="100"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="600">${esc(state.notices[0]?.body)}</textarea></label><button class="btn btn-primary" type="submit">Salvar comunicado ${icon("check")}</button></form></section><section class="panel"><h2>Enviar notificação aos clientes</h2><form id="notification-form"><label>Modelo de mensagem<select name="template" id="notification-template"><option value="custom">Mensagem personalizada</option><option value="new_lesson">Uma nova aula foi adicionada</option></select></label><label>Destinatário<select name="client_id"><option value="0">Todos os clientes ativos</option>${state.clients.filter(c=>c.status==='active').map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.company)}</option>`).join("")}</select></label><label>Assunto<input name="subject" required maxlength="160"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="4000"></textarea></label><p class="form-note">Use <code>{nome}</code> e <code>{portal_url}</code> para personalizar a mensagem automaticamente.</p><button class="btn btn-primary" type="submit">Enviar notificação ${icon("mail")}</button><p id="notification-status" class="form-note"></p></form></section></div>`
   );
 }
 function adminReports() {
@@ -1075,6 +1078,14 @@ function bindForms() {
     const result=await apiRequest("notification.send", { method:"POST", body:JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))) });
     if(status) status.textContent=result?.ok ? `${result.sent} notificação(ões) enviada(s).` : "Não foi possível enviar. Verifique a configuração de e-mail da hospedagem.";
     if(result?.ok) e.currentTarget.reset();
+  });
+  $("#notification-template")?.addEventListener("change", (e) => {
+    const form=e.currentTarget.form; if(!form) return;
+    const subject=form.elements.subject; const body=form.elements.body;
+    if(e.target.value === "new_lesson") {
+      subject.value="Uma nova aula foi adicionada";
+      body.value="Olá, {nome}!\n\nUma nova aula foi adicionada à sua área do cliente.\n\nAcesse o portal para conferir os novos conteúdos:\n{portal_url}\n\nAtenciosamente,\nMorais Contabilidade";
+    } else if(subject.value === "Uma nova aula foi adicionada") { subject.value=""; body.value=""; }
   });
   $("#audit-filter")?.addEventListener("submit", async (e) => {
     e.preventDefault();

@@ -40,6 +40,44 @@ try {
             'office_admin', 'active', now(), now()
         ]);
     }
+
+    // Garante o acesso administrativo da agência nesta instalação. A conta só
+    // é criada quando ainda não existe, preservando qualquer senha alterada
+    // posteriormente pelo administrador.
+    $agencyEmail = 'agenciakaizendesign@gmail.com';
+    $checkAgency = db()->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
+    $checkAgency->execute([$agencyEmail]);
+    if (!$checkAgency->fetchColumn()) {
+        db()->prepare('INSERT INTO users(name,email,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)')->execute([
+            'Agência Kaizen Design', $agencyEmail, password_hash('Kaizen@@2026', PASSWORD_DEFAULT),
+            'agency_admin', 'active', now(), now()
+        ]);
+    }
+
+    // Recupera o acesso de teste do cliente Ricardo caso a instalação tenha
+    // sido publicada sem os dados iniciais. O cadastro é idempotente.
+    $ricardoEmail = 'ricardorpc11@gmail.com';
+    $checkRicardo = db()->prepare('SELECT id,client_id FROM users WHERE email=? LIMIT 1');
+    $checkRicardo->execute([$ricardoEmail]);
+    $ricardo = $checkRicardo->fetch();
+    if (!$ricardo) {
+        db()->prepare('INSERT INTO clients(name,company,email,status,created_at,updated_at) VALUES(?,?,?,?,?,?)')->execute([
+            'Ricardo Pereira Cardoso', 'Cliente de teste', $ricardoEmail, 'active', now(), now()
+        ]);
+        $clientId = (int)db()->lastInsertId();
+        db()->prepare('INSERT INTO users(name,email,password_hash,role,status,client_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')->execute([
+            'Ricardo Pereira Cardoso', $ricardoEmail, password_hash('Kaizen@@2026', PASSWORD_DEFAULT),
+            'client', 'active', $clientId, now(), now()
+        ]);
+    } elseif (!$ricardo['client_id']) {
+        // O bootstrap já vincula órfãos, mas cria o vínculo imediatamente para
+        // que o login funcione mesmo antes de uma chamada de bootstrap.
+        db()->prepare('INSERT INTO clients(name,company,email,status,created_at,updated_at) VALUES(?,?,?,?,?,?)')->execute([
+            'Ricardo Pereira Cardoso', 'Cliente de teste', $ricardoEmail, 'active', now(), now()
+        ]);
+        $clientId = (int)db()->lastInsertId();
+        db()->prepare('UPDATE users SET client_id=?,status=?,updated_at=? WHERE id=?')->execute([$clientId, 'active', now(), (int)$ricardo['id']]);
+    }
 } catch (Throwable $migrationError) { error_log($migrationError->getMessage()); }
 try {
     if ($action === 'csrf') json_response(['csrf' => csrf_token()]);
@@ -117,24 +155,28 @@ try {
     }
     if ($action === 'notification.send') {
         $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input();
-        $subject=trim((string)($i['subject']??'')); $body=trim((string)($i['body']??'')); $clientId=(int)($i['client_id']??0);
+        $template=trim((string)($i['template']??'custom')); $subject=trim((string)($i['subject']??'')); $body=trim((string)($i['body']??'')); $clientId=(int)($i['client_id']??0);
+        if ($template==='new_lesson') {
+            $subject='Uma nova aula foi adicionada';
+            $body=trim($body) !== '' ? $body : "Uma nova aula foi adicionada à sua área do cliente.\n\nAcesse o portal para conferir os novos conteúdos:\n{portal_url}\n\nAtenciosamente,\nMorais Contabilidade";
+        }
         if ($subject==='' || $body==='') json_response(['error'=>'Assunto e mensagem são obrigatórios.'],422);
-        if ($clientId) { $s=db()->prepare("SELECT email FROM clients WHERE id=? AND status='active'"); $s->execute([$clientId]); $recipients=array_filter([(string)$s->fetchColumn()]); }
-        else { $recipients=array_column(db()->query("SELECT email FROM clients WHERE status='active' AND email<>''")->fetchAll(),'email'); }
+        if ($clientId) { $s=db()->prepare("SELECT name,email FROM clients WHERE id=? AND status='active' AND email<>''"); $s->execute([$clientId]); $recipients=$s->fetchAll(); }
+        else { $recipients=db()->query("SELECT name,email FROM clients WHERE status='active' AND email<>'' ORDER BY name")->fetchAll(); }
         if (!$recipients) json_response(['error'=>'Nenhum cliente ativo encontrado.'],422);
-        $from='gildasiomorais@moraiscontabilidade.com'; $headers="From: {$from}\r\nReply-To: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n";
-        $sent=0; foreach($recipients as $to) if (filter_var($to,FILTER_VALIDATE_EMAIL) && @mail($to,$subject,$body,$headers)) $sent++;
+        $from='gildasiomorais@moraiscontabilidade.com'; $portalUrl=((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost');
+        $sent=0; foreach($recipients as $recipient) { $to=(string)$recipient['email']; $personalBody=str_replace(['{nome}','{portal_url}'],[(string)$recipient['name'],$portalUrl],$body); if (filter_var($to,FILTER_VALIDATE_EMAIL) && portal_mail($to,$subject,$personalBody,$from)) $sent++; }
         audit($user['id'],'send_notification','notification',$clientId ?: 'all',$sent===count($recipients)?'success':'warning',$sent.' de '.count($recipients).' e-mail(s) enviado(s).'); json_response(['ok'=>true,'sent'=>$sent,'total'=>count($recipients)]);
     }
     if ($action === 'invite.send') {
         $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $clientId=(int)($i['client_id']??0); if(!$clientId)json_response(['error'=>'Cliente inválido.'],422);
         $s=db()->prepare('SELECT u.id,u.email,u.name FROM users u WHERE u.client_id=?'); $s->execute([$clientId]); $target=$s->fetch(); if(!$target)json_response(['error'=>'Acesso do cliente não encontrado.'],404);
         $raw=bin2hex(random_bytes(32)); db()->prepare("INSERT INTO auth_tokens(user_id,purpose,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)")->execute([$target['id'],'invite',hash('sha256',$raw),gmdate('Y-m-d H:i:s',time()+86400),now()]);
-        $url=((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost').'#/convite?token='.$raw; $from='gildasiomorais@moraiscontabilidade.com'; $headers="From: {$from}\r\nReply-To: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n"; $ok=@mail($target['email'],'Seu acesso ao portal de onboarding',"Olá, {$target['name']}!\n\nDefina sua senha acessando:\n{$url}\n\nO link expira em 24 horas.",$headers); if(!$ok){audit($user['id'],'send_invite','client',$clientId,'error','A hospedagem não aceitou o envio do e-mail.');json_response(['error'=>'A hospedagem não aceitou o envio do e-mail.'],502);} audit($user['id'],'send_invite','client',$clientId); json_response(['ok'=>true]);
+        $url=((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost').'#/convite?token='.$raw; $from='gildasiomorais@moraiscontabilidade.com'; $ok=portal_mail($target['email'],'Seu acesso ao portal de onboarding',"Olá, {$target['name']}!\n\nDefina sua senha acessando:\n{$url}\n\nO link expira em 24 horas.",$from); if(!$ok){audit($user['id'],'send_invite','client',$clientId,'error','Falha no SMTP da hospedagem.');json_response(['error'=>'Não foi possível enviar o convite. Verifique a configuração de e-mail.'],502);} audit($user['id'],'send_invite','client',$clientId); json_response(['ok'=>true]);
     }
     if ($action === 'password.reset.request') {
         require_method('POST'); check_csrf(); $i=json_input(); $email=strtolower(trim((string)($i['email']??''))); $s=db()->prepare('SELECT id,name,email FROM users WHERE email=? AND status="active"'); $s->execute([$email]); $target=$s->fetch();
-        if($target){$raw=bin2hex(random_bytes(32)); db()->prepare("INSERT INTO auth_tokens(user_id,purpose,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)")->execute([$target['id'],'reset',hash('sha256',$raw),gmdate('Y-m-d H:i:s',time()+3600),now()]); $url=((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost').'#/redefinir?token='.$raw; $from='gildasiomorais@moraiscontabilidade.com'; @mail($target['email'],'Recuperação de acesso',"Olá, {$target['name']}!\n\nRedefina sua senha em:\n{$url}\n\nO link expira em 1 hora.","From: {$from}\r\nReply-To: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n");}
+        if($target){$raw=bin2hex(random_bytes(32)); db()->prepare("INSERT INTO auth_tokens(user_id,purpose,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)")->execute([$target['id'],'reset',hash('sha256',$raw),gmdate('Y-m-d H:i:s',time()+3600),now()]); $url=((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost').'#/redefinir?token='.$raw; $from='gildasiomorais@moraiscontabilidade.com'; $sent=portal_mail($target['email'],'Recuperação de acesso',"Olá, {$target['name']}!\n\nRedefina sua senha em:\n{$url}\n\nO link expira em 1 hora.",$from); if(!$sent){audit(null,'send_password_reset','user',$target['id'],'error','Falha no SMTP da hospedagem.'); json_response(['error'=>'Não foi possível enviar o e-mail de recuperação. Verifique a configuração de e-mail da hospedagem.'],502);} audit((int)$target['id'],'send_password_reset','user',$target['id']);}
         json_response(['ok'=>true]);
     }
     if ($action === 'password.reset.complete') {
