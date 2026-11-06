@@ -189,7 +189,7 @@ async function loadBackend() {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
   }
   if (Array.isArray(data.clients)) {
-    state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
+    state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), status: client.status === "active" ? "active" : client.status === "pending" ? "invited" : "inactive", group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
   } else state.clients = [];
   if (!Array.isArray(data.media)) state.files = [];
   if (data.user && ['agency_admin','office_admin'].includes(data.user.role)) state.report = await apiRequest('reports.summary');
@@ -1411,7 +1411,7 @@ document.addEventListener("click", async (e) => {
   }
   if (action === "toggle-client") {
     const c = state.clients.find((v) => v.id === id);
-    c.status = c.status === "inactive" ? "active" : "inactive";
+    c.status = c.status === "active" ? "inactive" : "active";
     persist();
     void apiRequest("client.save", { method:"POST", body:JSON.stringify({id:/^\d+$/.test(String(id))?Number(id):0,name:c.name,company:c.company,email:c.email,password:"",status:c.status,expires_at:c.expires||null}) });
     render();
