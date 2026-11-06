@@ -1,7 +1,7 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home3/morais87/onboarding.kaizenmidias.com/
+    - export DEPLOYPATH=/home3/morais87/academia.moraiscontabilidade.com/
     - /bin/cp -R app $DEPLOYPATH
     - /bin/cp -R assets $DEPLOYPATH
     - /bin/cp -R config $DEPLOYPATH
