@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=notes-20261105b";
+import { createAcademy } from "./academy.js?v=notes-20261105c";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
@@ -69,7 +69,8 @@ let courseFilter = "all",
   outlineOpen = true,
   lessonTab = "description",
   modalHandler = null,
-  mediaUrls = new Map();
+  mediaUrls = new Map(),
+  noteStore = {};
 const $ = (s, root = document) => root.querySelector(s);
 const app = $("#app"),
   modal = $("#modal");
@@ -186,7 +187,10 @@ async function loadBackend() {
   if (Array.isArray(data.courses)) {
     state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), coverImage: course.cover_image || course.coverImage || "", landscapeImage: course.landscape_image || course.landscapeImage || "", sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
   }
-  if (data.notes && typeof data.notes === "object") state.notes = { ...state.notes, ...data.notes };
+  if (data.notes && typeof data.notes === "object") {
+    noteStore = { ...noteStore, ...state.notes, ...data.notes };
+    state.notes = noteStore;
+  }
   if (Array.isArray(data.media)) {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
   }
@@ -266,6 +270,7 @@ const academy = () =>
     outlineOpen,
     lessonTab,
     mediaUrls,
+    notes: noteStore,
     noteDrafts: state.noteDrafts,
     persist,
     courseFilter,
@@ -1252,6 +1257,7 @@ document.addEventListener("click", async (e) => {
   if (action === "save-note") {
     const note = $("#lesson-notes")?.value || "";
     state.notes[id] = note;
+    noteStore[id] = note;
     delete state.noteDrafts[id];
     persist();
     void apiRequest("lesson.note", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,note}) });
