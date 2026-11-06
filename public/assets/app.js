@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=notes-20261106g";
+import { createAcademy } from "./academy.js?v=notes-20261106h";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
@@ -335,7 +335,8 @@ function shell(content, section = "Visão geral") {
   <main id="main-content" tabindex="-1" class="main-content">${content}</main><footer class="footer"><span>Conhecimento e proximidade em cada etapa.</span><a href="#/privacidade">Privacidade e termos ${icon("shield")}</a></footer></div></div>`;
 }
 function courseCover(c, small = false) {
-  return `<div class="course-cover tone-${esc(c.tone)} ${small ? "small" : ""}"><span class="cover-label">${esc(brand().name.toUpperCase())} • CONHECIMENTO</span><span class="cover-orbit"></span><span class="cover-icon">${icon(c.icon)}</span><span class="cover-bottom">${esc(c.category)} ${icon("arrow")}</span></div>`;
+  const photo = small ? c.coverImage : (c.landscapeImage || c.coverImage);
+  return `<div class="course-cover tone-${esc(c.tone)} ${small ? "small" : ""} ${photo ? "with-photo" : ""}">${photo ? `<img class="course-cover-photo" src="${esc(photo)}" alt="Capa de ${esc(c.title)}">` : `<span class="cover-label">${esc(brand().name.toUpperCase())} • CONHECIMENTO</span><span class="cover-orbit"></span><span class="cover-icon">${icon(c.icon)}</span><span class="cover-bottom">${esc(c.category)} ${icon("arrow")}</span>`}</div>`;
 }
 function courseCard(c) {
   const p = progress(c),
