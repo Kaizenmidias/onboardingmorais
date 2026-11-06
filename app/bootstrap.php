@@ -43,21 +43,27 @@ function json_input(): array {
 }
 function portal_mail(string $to, string $subject, string $body, string $from = 'gildasiomorais@moraiscontabilidade.com'): bool {
     $mail = app_config()['mail'] ?? [];
+    $headers = "From: {$from}\r\nReply-To: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n";
     if (empty($mail['host']) || empty($mail['user']) || empty($mail['pass'])) {
-        return @mail($to, $subject, $body, "From: {$from}\r\nReply-To: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n", '-f' . $from);
+        return @mail($to, $subject, $body, $headers, '-f' . $from);
     }
-    $host = (string)$mail['host']; $port = (int)($mail['port'] ?? 465); $ssl = ($mail['encryption'] ?? 'ssl') === 'ssl';
-    $fp = @stream_socket_client(($ssl ? 'ssl://' : '') . $host . ':' . $port, $errno, $errstr, 15, STREAM_CLIENT_CONNECT);
-    if (!$fp) return false;
-    stream_set_timeout($fp, 15);
-    $read = static function ($fp): string { $out = ''; while (($line = fgets($fp, 515)) !== false) { $out .= $line; if (isset($line[3]) && $line[3] === ' ') break; } return $out; };
-    $write = static function ($fp, string $command, int $code) use ($read): bool { fwrite($fp, $command . "\r\n"); return str_starts_with($read($fp), (string)$code); };
-    if (!str_starts_with($read($fp), '220')) { fclose($fp); return false; }
-    if (!$write($fp, 'EHLO ' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), 250)) { fclose($fp); return false; }
-    if (!$write($fp, 'AUTH LOGIN', 334) || !$write($fp, base64_encode((string)$mail['user']), 334) || !$write($fp, base64_encode((string)$mail['pass']), 235)) { fclose($fp); return false; }
-    if (!$write($fp, 'MAIL FROM:<' . $from . '>', 250) || !$write($fp, 'RCPT TO:<' . $to . '>', 250) || !$write($fp, 'DATA', 354)) { fclose($fp); return false; }
-    $message = 'From: ' . $from . "\r\nReply-To: " . $from . "\r\nTo: " . $to . "\r\nSubject: " . $subject . "\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" . preg_replace('/\r?\n\./', "\r\n..", $body) . "\r\n.";
-    fwrite($fp, $message . "\r\n"); $ok = str_starts_with($read($fp), '250'); fwrite($fp, "QUIT\r\n"); fclose($fp); return $ok;
+    $host = (string)$mail['host']; $port = (int)($mail['port'] ?? 465); $encryption = strtolower((string)($mail['encryption'] ?? 'ssl'));
+    $endpoints = [[$host, $port, $encryption]];
+    if ($port !== 587 || $encryption !== 'tls') $endpoints[] = [$host, 587, 'tls'];
+    foreach ($endpoints as [$smtpHost, $smtpPort, $smtpEncryption]) {
+        $fp = @stream_socket_client(($smtpEncryption === 'ssl' ? 'ssl://' : '') . $smtpHost . ':' . $smtpPort, $errno, $errstr, 15, STREAM_CLIENT_CONNECT);
+        if (!$fp) continue;
+        stream_set_timeout($fp, 15);
+        $read = static function ($fp): string { $out = ''; while (($line = fgets($fp, 515)) !== false) { $out .= $line; if (isset($line[3]) && $line[3] === ' ') break; } return $out; };
+        $write = static function ($fp, string $command, int $code) use ($read): bool { fwrite($fp, $command . "\r\n"); return str_starts_with($read($fp), (string)$code); };
+        $ok = str_starts_with($read($fp), '220') && $write($fp, 'EHLO ' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), 250);
+        if ($ok && $smtpEncryption === 'tls') { $ok = $write($fp, 'STARTTLS', 220) && @stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT) && $write($fp, 'EHLO ' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), 250); }
+        $ok = $ok && $write($fp, 'AUTH LOGIN', 334) && $write($fp, base64_encode((string)$mail['user']), 334) && $write($fp, base64_encode((string)$mail['pass']), 235);
+        $ok = $ok && $write($fp, 'MAIL FROM:<' . $from . '>', 250) && $write($fp, 'RCPT TO:<' . $to . '>', 250) && $write($fp, 'DATA', 354);
+        if ($ok) { $message = 'From: ' . $from . "\r\nReply-To: " . $from . "\r\nTo: " . $to . "\r\nSubject: " . $subject . "\r\n" . $headers . "\r\n" . preg_replace('/\r?\n\./', "\r\n..", $body) . "\r\n."; fwrite($fp, $message . "\r\n"); $ok = str_starts_with($read($fp), '250'); }
+        @fwrite($fp, "QUIT\r\n"); fclose($fp); if ($ok) return true;
+    }
+    return @mail($to, $subject, $body, $headers, '-f' . $from);
 }
 function require_method(string $method): void { if ($_SERVER['REQUEST_METHOD'] !== $method) json_response(['error' => 'Método não permitido.'], 405); }
 function csrf_token(): string {
@@ -97,6 +103,30 @@ function ensure_audit_schema(): void {
     ] as $index => $definition) {
         try { db()->exec("ALTER TABLE audit_events {$definition}"); } catch (Throwable) { /* já existe */ }
     }
+}
+function ensure_groups_schema(): void {
+    static $ready = false;
+    if ($ready) return;
+    $ready = true;
+    db()->exec("CREATE TABLE IF NOT EXISTS client_groups (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(120) NOT NULL,
+        description VARCHAR(255) NULL,
+        status ENUM('active','archived') NOT NULL DEFAULT 'active',
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        UNIQUE KEY uq_client_groups_name (name),
+        KEY idx_client_groups_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    db()->exec("CREATE TABLE IF NOT EXISTS client_group_members (
+        group_id BIGINT UNSIGNED NOT NULL,
+        client_id BIGINT UNSIGNED NOT NULL,
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY (group_id, client_id),
+        KEY idx_group_members_client (client_id),
+        CONSTRAINT fk_group_members_group FOREIGN KEY (group_id) REFERENCES client_groups(id) ON DELETE CASCADE,
+        CONSTRAINT fk_group_members_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 function audit(?int $userId, string $action, string $type, string|int|null $entity = null, string $result = 'success', ?string $message = null): void {
     try {

@@ -16,6 +16,7 @@ const fresh = () => ({
   settings: structuredClone(defaults),
   courses: structuredClone(seedCourses),
   clients: structuredClone(seedClients),
+  groups: [],
   completed: ["l1", "l2", "l3", "l4", "t1", "t2", "t3", "t4"],
   lastLesson: "l5",
   positions: {},
@@ -54,6 +55,7 @@ if (!state.catalogRevision) {
   state.catalogRevision = 2;
 }
 state.notes ??= {};
+state.groups ??= [];
 state.noteDrafts ??= {};
 state.saved ??= [];
 state.ratings ??= {};
@@ -213,8 +215,9 @@ async function loadBackend() {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
   }
   if (Array.isArray(data.clients)) {
-    state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), status: client.status === "active" ? "active" : client.status === "pending" ? "invited" : "inactive", group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
+    state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), status: client.status === "active" ? "active" : client.status === "pending" ? "invited" : "inactive", groupIds: String(client.group_ids || "").split(",").filter(Boolean), group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
   } else state.clients = [];
+  state.groups = Array.isArray(data.groups) ? data.groups.map((group) => ({ ...group, id: String(group.id), memberCount: Number(group.member_count || 0) })) : [];
   if (!Array.isArray(data.media)) state.files = [];
   if (data.user && ['agency_admin','office_admin'].includes(data.user.role)) {
     state.report = await apiRequest('reports.summary');
@@ -518,29 +521,37 @@ function courseEditor(id) {
   if (!c) return notFound();
   return `<a class="back-link" href="#/admin/conteudos">${icon("left")} Voltar para conteúdos</a>${heading("EDITOR DE CONTEÚDO", c.title, "Organize módulos e aulas da sua trilha.", `<button class="btn btn-secondary" data-action="course-form" data-id="${c.id}">${icon("settings")} Configurar trilha</button>`)}<div class="content-columns"><section>${outline(c, "", true)}<button class="btn btn-secondary" data-action="add-module" data-id="${c.id}">${icon("plus")} Adicionar módulo</button></section><aside class="panel course-summary"><h2>Publicação</h2><p>${esc(c.description)}</p>${badge(c.status === "published" ? "Publicada" : "Rascunho", c.status === "published" ? "success" : "neutral")}<p>${c.sequence ? "As aulas seguem uma sequência." : "O cliente pode explorar as aulas livremente."}</p><button class="btn btn-primary full" data-action="publish-course" data-id="${c.id}">${c.status === "published" ? "Mover para rascunho" : "Publicar"}</button>${c.status === "published" ? link("/curso/" + c.id, `${icon("eye")} Ver como cliente`, "btn btn-secondary full") : ""}<button class="btn btn-quiet full" data-action="archive-course" data-id="${c.id}">${icon("trash")} Remover</button></aside></div>`;
 }
+function groupForm(id) {
+  const g = state.groups.find((v) => v.id === String(id)) || {};
+  const members = new Set((state.clients || []).filter((c) => (c.groupIds || []).includes(String(id))).map((c) => String(c.id)));
+  openModal(id ? "Editar grupo" : "Novo grupo", `<form>${input("Nome do grupo", "name", g.name || "", "text", 'required maxlength="120"')}<label>Descrição<textarea name="description" rows="3" maxlength="255">${esc(g.description || "")}</textarea></label><fieldset><legend>Clientes do grupo</legend><div class="group-member-picker">${state.clients.filter(c=>c.status==='active').map(c=>`<label class="checkbox-label"><input type="checkbox" name="client_ids[]" value="${esc(c.id)}" ${members.has(String(c.id)) ? "checked" : ""}>${esc(c.name)} · ${esc(c.company)}</label>`).join("") || "Nenhum cliente ativo cadastrado."}</div></fieldset>${modalFooter("Salvar grupo")}</form>`, async (fd) => {
+    const values = Object.fromEntries(fd); const clientIds = fd.getAll("client_ids[]").map(String);
+    const result = await apiRequest("group.save", { method: "POST", body: JSON.stringify({ id: id ? Number(id) : 0, name: values.name, description: values.description || "", client_ids: clientIds.map(Number) }) });
+    if (!result?.ok) return toast(result?.error || "Não foi possível salvar o grupo.");
+    modal.close(); await loadBackend(); toast("Grupo salvo no portal.");
+  });
+}
 function adminGroups() {
-  const groups = [
-    ...new Set(state.clients.map((c) => c.group).filter(Boolean)),
-  ];
   return (
     heading(
       "ACESSO ORGANIZADO",
       "Grupos de clientes",
       "Agrupe empresas para organizar suas jornadas e liberações.",
+      `<button class="btn btn-primary" data-action="group-form">${icon("plus")} Novo grupo</button>`
     ) +
-    `<div class="course-grid">${groups
+    `<div class="course-grid">${state.groups
       .map(
         (g) =>
-          `<article class="panel group-card"><span class="stat-icon">${icon("users")}</span><h2>${esc(g)}</h2><p>${state.clients.filter((c) => c.group === g).length} empresas neste grupo</p><div class="group-avatars">${state.clients
-            .filter((c) => c.group === g)
+          `<article class="panel group-card"><span class="stat-icon">${icon("users")}</span><h2>${esc(g.name)}</h2><p>${Number(g.memberCount || 0)} clientes neste grupo</p><div class="group-avatars">${state.clients
+            .filter((c) => (c.groupIds || []).includes(String(g.id)))
             .map((c) => avatar(c.name))
             .join(
               "",
-            )}</div><button class="btn btn-secondary full" data-action="view-group" data-id="${esc(g)}">Ver membros ${icon("arrow")}</button></article>`,
+            )}</div><div class="row-actions"><button class="btn btn-secondary" data-action="view-group" data-id="${esc(g.id)}">Ver membros ${icon("arrow")}</button><button class="icon-btn" data-action="group-form" data-id="${esc(g.id)}" aria-label="Editar grupo">${icon("edit")}</button><button class="icon-btn" data-action="delete-group" data-id="${esc(g.id)}" aria-label="Excluir grupo">${icon("trash")}</button></div></article>`,
       )
       .join(
         "",
-      )}</div><div class="inline-note">${icon("help")} Na portal, altere o grupo no cadastro do cliente. Concessões automáticas por grupo serão conectadas ao backend.</div>`
+      )}</div>${state.groups.length ? "" : empty("Nenhum grupo criado", "Crie um grupo para organizar clientes e usá-lo como destinatário nas comunicações.")}`
   );
 }
 function adminMedia() {
@@ -561,7 +572,7 @@ function adminCommunication() {
       "Recados e orientações",
       "Mantenha as informações importantes no caminho do cliente.",
     ) +
-    `<div class="help-layout"><section class="panel"><div class="section-title"><h2>Comunicado da página inicial</h2></div><form id="notice-form"><label>Título<input name="title" value="${esc(state.notices[0]?.title)}" required maxlength="100"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="600">${esc(state.notices[0]?.body)}</textarea></label><button class="btn btn-primary" type="submit">Salvar comunicado ${icon("check")}</button></form></section><section class="panel notification-panel"><div class="notification-heading"><span class="notification-heading-icon">${icon("mail")}</span><div><h2>Enviar notificação aos clientes</h2><p>Selecione os clientes e envie sua mensagem.</p></div></div><form id="notification-form"><label>Modelo de mensagem<select name="template" id="notification-template"><option value="custom">Mensagem personalizada</option><option value="new_lesson">Uma nova aula foi adicionada</option></select></label><fieldset class="recipient-picker"><legend>Destinatários</legend><div class="recipient-mode"><label class="recipient-card is-selected"><input type="radio" name="recipient_mode" id="notification-all" value="all" checked><span class="recipient-card-icon">${icon("users")}</span><span><strong>Todos os clientes ativos</strong><small>Enviar para todos os clientes do portal</small></span><span class="recipient-card-check">${icon("check")}</span></label><label class="recipient-card"><input type="radio" name="recipient_mode" id="notification-select" value="selected"><span class="recipient-card-icon">${icon("user")}</span><span><strong>Selecionar clientes</strong><small>Escolha um ou mais clientes da lista</small></span><span class="recipient-card-check">${icon("check")}</span></label></div><div id="notification-recipient-list" class="recipient-list" hidden><div class="recipient-list-header"><strong>Clientes disponíveis</strong><span id="notification-recipient-count">0 selecionados</span></div>${state.clients.filter(c=>c.status==='active').map(c=>`<label class="recipient-row"><input type="checkbox" name="client_ids[]" value="${esc(c.id)}" data-recipient-checkbox disabled><span class="recipient-row-icon">${icon("user")}</span><strong>${esc(c.name)} · ${esc(c.company)}</strong></label>`).join("")}</div></fieldset><label>Assunto<input name="subject" required maxlength="160"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="4000"></textarea></label><p class="form-note">Use <code>{nome}</code> e <code>{portal_url}</code> para personalizar a mensagem automaticamente.</p><button class="btn btn-primary" type="submit">Enviar notificação ${icon("mail")}</button><p id="notification-status" class="form-note"></p></form></section></div>`
+    `<div class="help-layout"><section class="panel"><div class="section-title"><h2>Comunicado da página inicial</h2></div><form id="notice-form"><label>Título<input name="title" value="${esc(state.notices[0]?.title)}" required maxlength="100"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="600">${esc(state.notices[0]?.body)}</textarea></label><button class="btn btn-primary" type="submit">Salvar comunicado ${icon("check")}</button></form></section><section class="panel notification-panel"><div class="notification-heading"><span class="notification-heading-icon">${icon("mail")}</span><div><h2>Enviar notificação aos clientes</h2><p>Selecione clientes ou um grupo.</p></div></div><form id="notification-form"><label>Modelo de mensagem<select name="template" id="notification-template"><option value="custom">Mensagem personalizada</option><option value="new_lesson">Uma nova aula foi adicionada</option></select></label><fieldset class="recipient-picker"><legend>Destinatários</legend><div class="recipient-mode"><label class="recipient-card is-selected"><input type="radio" name="recipient_mode" id="notification-all" value="all" checked><span class="recipient-card-icon">${icon("users")}</span><span><strong>Todos os clientes ativos</strong><small>Enviar para todos os clientes do portal</small></span><span class="recipient-card-check">${icon("check")}</span></label><label class="recipient-card"><input type="radio" name="recipient_mode" id="notification-select" value="selected"><span class="recipient-card-icon">${icon("user")}</span><span><strong>Selecionar clientes</strong><small>Escolha um ou mais clientes da lista</small></span><span class="recipient-card-check">${icon("check")}</span></label><label class="recipient-card"><input type="radio" name="recipient_mode" id="notification-group-mode" value="group"><span class="recipient-card-icon">${icon("layers")}</span><span><strong>Selecionar grupo</strong><small>Enviar para todos os clientes de um grupo</small></span><span class="recipient-card-check">${icon("check")}</span></label></div><div id="notification-recipient-list" class="recipient-list" hidden><div class="recipient-list-header"><strong>Clientes disponíveis</strong><span id="notification-recipient-count">0 selecionados</span></div>${state.clients.filter(c=>c.status==='active').map(c=>`<label class="recipient-row"><input type="checkbox" name="client_ids[]" value="${esc(c.id)}" data-recipient-checkbox disabled><span class="recipient-row-icon">${icon("user")}</span><strong>${esc(c.name)} · ${esc(c.company)}</strong></label>`).join("")}</div><div id="notification-group-list" class="recipient-list" hidden><label>Grupo<select name="group_id" id="notification-group"><option value="">Selecione um grupo</option>${state.groups.map(g=>`<option value="${esc(g.id)}">${esc(g.name)} (${Number(g.memberCount || 0)})</option>`).join("")}</select></label></div></fieldset><label>Assunto<input name="subject" required maxlength="160"></label><label>Mensagem<textarea name="body" rows="5" required maxlength="4000"></textarea></label><p class="form-note">Use <code>{nome}</code> e <code>{portal_url}</code> para personalizar a mensagem automaticamente.</p><button class="btn btn-primary" type="submit">Enviar notificação ${icon("mail")}</button><p id="notification-status" class="form-note"></p></form></section></div>`
   );
 }
 function adminReports() {
@@ -772,7 +783,7 @@ function clientForm(id) {
   const accessPassword = input("Senha de acesso", "password", "", "password", `${id ? "" : "required "}minlength="8" autocomplete="new-password"`);
   openModal(
     id ? "Editar cliente" : "Um novo começo para seu cliente",
-    `<form>${input("Nome do responsável", "name", c.name, "text", 'required maxlength="80"')}${input("Empresa", "company", c.company, "text", 'required maxlength="100"')}${input("E-mail", "email", c.email, "email", "required")}<div class="form-grid">${input("CNPJ (opcional no portal)", "cnpj", c.cnpj, "text", 'maxlength="18"')}${input("Telefone", "phone", c.phone, "tel")}${input("WhatsApp", "whatsapp", c.whatsapp, "tel")}${input("Grupo", "group", c.group || "Novos clientes")}${input("Expiração do acesso", "expires", c.expires, "date")}</div><fieldset><legend>Trilhas liberadas</legend>${state.courses.map((v) => `<label class="checkbox-label"><input type="checkbox" name="courses" value="${v.id}" ${(c.courses || ["primeiros-passos"]).includes(v.id) ? "checked" : ""}>${esc(v.title)}</label>`).join("")}</fieldset><p class="form-note">Cadastro de portal. O convite será enviado ao salvar.</p>${modalFooter()}</form>`,
+    `<form>${input("Nome do responsável", "name", c.name, "text", 'required maxlength="80"')}${input("Empresa", "company", c.company, "text", 'required maxlength="100"')}${input("E-mail", "email", c.email, "email", "required")}<div class="form-grid">${input("CNPJ (opcional no portal)", "cnpj", c.cnpj, "text", 'maxlength="18"')}${input("Telefone", "phone", c.phone, "tel")}${input("WhatsApp", "whatsapp", c.whatsapp, "tel")}${input("Expiração do acesso", "expires", c.expires, "date")}</div><fieldset><legend>Grupos</legend>${state.groups.length ? state.groups.map((g) => `<label class="checkbox-label"><input type="checkbox" name="group_ids" value="${esc(g.id)}" ${(c.groupIds || []).includes(String(g.id)) ? "checked" : ""}>${esc(g.name)}</label>`).join("") : '<p class="form-note">Crie grupos na área “Grupos de clientes” para organizar os acessos.</p>'}</fieldset><fieldset><legend>Trilhas liberadas</legend>${state.courses.map((v) => `<label class="checkbox-label"><input type="checkbox" name="courses" value="${v.id}" ${(c.courses || ["primeiros-passos"]).includes(v.id) ? "checked" : ""}>${esc(v.title)}</label>`).join("")}</fieldset><p class="form-note">Cadastro de portal. O convite será enviado ao salvar.</p>${modalFooter()}</form>`,
     async (fd) => {
       const values = Object.fromEntries(fd);
       if (
@@ -786,6 +797,7 @@ function clientForm(id) {
         ...values,
         id: id || uid("cliente"),
         courses: fd.getAll("courses"),
+        groupIds: fd.getAll("group_ids").map(String),
         status: c.status || "invited",
         progress: c.progress || 0,
         last: c.last || "Aguardando primeiro acesso",
@@ -793,7 +805,7 @@ function clientForm(id) {
       if (id) Object.assign(c, value);
       else state.clients.push(value);
       persist();
-      const saved = await apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, password: value.password || "", cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null }) });
+      const saved = await apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, password: value.password || "", cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null, group_ids: value.groupIds || [] }) });
       modal.close();
       render();
       toast(saved?.warning || (saved?.email_sent === false ? "Cadastro salvo, mas o e-mail não foi enviado." : "Cadastro salvo e dados de acesso enviados por e-mail."));
@@ -925,7 +937,7 @@ function courseForm(id, preset = {}) {
       const key = button.dataset.clearImage;
       images[key] = "";
       $("#preview-" + key).textContent = "Capa automática";
-      button.classList.remove("is-selected");
+      button.classList.add("is-selected");
     }),
   );
   modal.querySelectorAll("[data-open-course-media]").forEach((button) =>
@@ -1075,13 +1087,13 @@ function bindForms() {
   $("#notification-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const status=$("#notification-status"); if(status) status.textContent="Enviando…";
-    const form=e.currentTarget; const data=Object.fromEntries(new FormData(form)); data.client_ids=[...form.querySelectorAll('input[name="client_ids[]"]:checked')].map(input=>Number(input.value)); delete data.client_id;
+    const form=e.currentTarget; const data=Object.fromEntries(new FormData(form)); data.client_ids=[...form.querySelectorAll('input[name="client_ids[]"]:checked')].map(input=>Number(input.value)); data.group_id=Number(form.querySelector('#notification-group')?.value || 0); delete data.client_id;
     const result=await apiRequest("notification.send", { method:"POST", body:JSON.stringify(data) });
     if(status) status.textContent=result?.ok ? `${result.sent} de ${result.total} notificação(ões) enviada(s).` : (result?.error||"Não foi possível enviar. Verifique a configuração de e-mail da hospedagem.");
     if(result?.ok) e.currentTarget.reset();
   });
-  const updateRecipientMode=()=>{ const form=$("#notification-form"); if(!form) return; const selectedMode=form.querySelector("#notification-select")?.checked; const list=form.querySelector("#notification-recipient-list"); if(list) list.hidden=!selectedMode; form.querySelectorAll('input[name="client_ids[]"]').forEach(input=>{ input.disabled=!selectedMode; if(!selectedMode) input.checked=false; }); form.querySelectorAll(".recipient-card").forEach(card=>card.classList.toggle("is-selected",card.querySelector("input")?.checked)); const count=form.querySelector("#notification-recipient-count"); if(count) count.textContent=selectedMode?`${form.querySelectorAll('input[name="client_ids[]"]:checked').length} selecionado(s)`:"Todos os clientes ativos"; };
-  $("#notification-all")?.addEventListener("change",updateRecipientMode); $("#notification-select")?.addEventListener("change",updateRecipientMode);
+  const updateRecipientMode=()=>{ const form=$("#notification-form"); if(!form) return; const selectedMode=form.querySelector("#notification-select")?.checked; const groupMode=form.querySelector("#notification-group-mode")?.checked; const list=form.querySelector("#notification-recipient-list"); const groupList=form.querySelector("#notification-group-list"); if(list) list.hidden=!selectedMode; if(groupList) groupList.hidden=!groupMode; form.querySelectorAll('input[name="client_ids[]"]').forEach(input=>{ input.disabled=!selectedMode; if(!selectedMode) input.checked=false; }); form.querySelectorAll(".recipient-card").forEach(card=>card.classList.toggle("is-selected",card.querySelector("input")?.checked)); const count=form.querySelector("#notification-recipient-count"); if(count) count.textContent=selectedMode?`${form.querySelectorAll('input[name="client_ids[]"]:checked').length} selecionado(s)`:groupMode?"Grupo selecionado":"Todos os clientes ativos"; };
+  $("#notification-all")?.addEventListener("change",updateRecipientMode); $("#notification-select")?.addEventListener("change",updateRecipientMode); $("#notification-group-mode")?.addEventListener("change",updateRecipientMode);
   document.querySelectorAll('#notification-form input[name="client_ids[]"]').forEach((input)=>input.addEventListener("change",()=>{ const form=input.form; const count=form.querySelector("#notification-recipient-count"); if(count) count.textContent=`${form.querySelectorAll('input[name="client_ids[]"]:checked').length} selecionado(s)`; }));
   $("#notification-template")?.addEventListener("change", (e) => {
     const form=e.currentTarget.form; if(!form) return;
@@ -1527,7 +1539,20 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if (action === "view-group") {
-    openModal(id, clientTable(state.clients.filter((c) => c.group === id)));
+    const group = state.groups.find((g) => String(g.id) === String(id));
+    openModal(group?.name || "Membros do grupo", clientTable(state.clients.filter((c) => (c.groupIds || []).includes(String(id)))));
+    return;
+  }
+  if (action === "group-form") {
+    groupForm(id);
+    return;
+  }
+  if (action === "delete-group") {
+    if (!confirm("Excluir este grupo? Os clientes não serão excluídos.")) return;
+    const result = await apiRequest("group.delete", { method: "POST", body: JSON.stringify({ id: Number(id) }) });
+    if (!result?.ok) return toast(result?.error || "Não foi possível excluir o grupo.");
+    await loadBackend();
+    toast("Grupo excluído.");
     return;
   }
   if (action === "open-file") {
