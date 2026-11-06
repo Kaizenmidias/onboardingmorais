@@ -793,10 +793,10 @@ function clientForm(id) {
       if (id) Object.assign(c, value);
       else state.clients.push(value);
       persist();
-      void apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, password: value.password || "", cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null }) });
+      const saved = await apiRequest("client.save", { method: "POST", body: JSON.stringify({ id: /^\d+$/.test(String(id || "")) ? Number(id) : 0, name: value.name, company: value.company, email: value.email, password: value.password || "", cnpj: value.cnpj, phone: value.phone, whatsapp: value.whatsapp, status: value.status === "invited" ? "pending" : value.status, expires_at: value.expires || null }) });
       modal.close();
       render();
-      toast("Cadastro salvo no portal.");
+      toast(saved?.warning || (saved?.email_sent === false ? "Cadastro salvo, mas o e-mail não foi enviado." : "Cadastro salvo e dados de acesso enviados por e-mail."));
     },
   );
   modal.querySelector(".form-grid")?.insertAdjacentHTML("beforebegin", accessPassword);
