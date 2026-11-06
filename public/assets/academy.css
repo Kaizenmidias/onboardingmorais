@@ -131,6 +131,8 @@
   color: #5c6474;
   font-size: 10px;
 }
+.academy-profile .avatar-icon { display: grid; place-items: center; }
+.academy-profile .avatar-icon .icon { width: 18px; height: 18px; }
 .academy-search-popover {
   position: absolute;
   top: calc(100% + 10px);
@@ -2638,6 +2640,16 @@
   .academy-saved h1 {
     font-size: 29px;
   }
+}
+
+@media (max-width: 760px) {
+  .academy-topbar { grid-template-columns: minmax(0, 1fr) auto !important; overflow: visible; }
+  .academy-topbar-brand { min-width: 0 !important; overflow: hidden; }
+  .academy-topbar-brand > a { min-width: 0; overflow: hidden; }
+  .academy-topbar-actions { min-width: 0 !important; max-width: 48%; overflow: visible; }
+  .academy-profile .avatar-icon { flex: 0 0 32px; }
+  .academy-drawer { width: min(86vw, 320px); padding: 22px 18px; }
+  .academy-drawer nav a, .academy-drawer-bottom > a { min-height: 46px; padding: 12px 10px; }
 }
 @media (max-width: 480px) {
   .academy-hero {
