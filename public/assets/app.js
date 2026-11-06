@@ -25,6 +25,7 @@ const fresh = () => ({
   ratings: {},
   files: [],
   report: null,
+  audit: { events: [], page: 1, pages: 1, total: 0 },
   notices: [
     {
       title: "Seu onboarding, no seu ritmo",
@@ -56,6 +57,7 @@ state.notes ??= {};
 state.noteDrafts ??= {};
 state.saved ??= [];
 state.ratings ??= {};
+state.audit ??= { events: [], page: 1, pages: 1, total: 0 };
 // Compatibilidade com estados antigos salvos no navegador: garante que todas
 // as configurações necessárias existam antes da primeira renderização.
 state.settings ??= structuredClone(defaults);
@@ -129,7 +131,9 @@ const pct = () => {
 };
 const persist = () => {
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    const snapshot = { ...state };
+    delete snapshot.audit;
+    localStorage.setItem(KEY, JSON.stringify(snapshot));
     return true;
   } catch {
     toast(
@@ -147,7 +151,8 @@ async function apiRequest(action, options = {}) {
       apiCsrf = (await token.json()).csrf || "";
     }
     const method = options.method || "GET";
-    const response = await fetch(`api.php?action=${encodeURIComponent(action)}`, {
+    const query = options.query ? "&" + new URLSearchParams(options.query).toString() : "";
+    const response = await fetch(`api.php?action=${encodeURIComponent(action)}${query}`, {
       ...options,
       method,
       credentials: "same-origin",
@@ -167,7 +172,15 @@ function toast(message) {
 }
 async function loadBackend() {
   const data = await apiRequest("bootstrap");
-  if (!data) { render(); return; }
+  if (!data) {
+    window.__productionMode = true;
+    state.courses = [];
+    state.clients = [];
+    state.files = [];
+    state.report = null;
+    app.innerHTML = '<div class="boot"><p>Não foi possível conectar ao portal. Atualize a página ou contate o administrador.</p></div>';
+    return;
+  }
   window.__productionMode = true;
   if (data.user) {
     window.__currentUser = data.user;
@@ -198,7 +211,10 @@ async function loadBackend() {
     state.clients = data.clients.map((client) => ({ ...client, id: String(client.id), status: client.status === "active" ? "active" : client.status === "pending" ? "invited" : "inactive", group: "Clientes", courses: [], progress: 0, last: client.last_access_at ? new Date(`${client.last_access_at.replace(" ", "T")}Z`).toLocaleString("pt-BR") : "Sem atividade", expires: client.expires_at ? client.expires_at.slice(0, 10) : "" }));
   } else state.clients = [];
   if (!Array.isArray(data.media)) state.files = [];
-  if (data.user && ['agency_admin','office_admin'].includes(data.user.role)) state.report = await apiRequest('reports.summary');
+  if (data.user && ['agency_admin','office_admin'].includes(data.user.role)) {
+    state.report = await apiRequest('reports.summary');
+    state.audit = await apiRequest('audit.list') || state.audit;
+  }
   persist();
   render();
 }
@@ -290,6 +306,7 @@ function shell(content, section = "Visão geral") {
         ["midia", "folder", "Biblioteca de mídia"],
         ["comunicacao", "message", "Comunicação"],
         ["relatorios", "chart", "Relatórios"],
+        ["auditoria", "shield", "Auditoria"],
         ["personalizacao", "settings", "Personalização"],
         ["operacao", "shield", "Configurações"],
       ]
@@ -303,8 +320,7 @@ function shell(content, section = "Visão geral") {
   const current = window.__currentUser || (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
   const displayName = admin ? "Equipe Morais" : (current?.name || "Cliente");
   const displayCompany = admin ? "Administrador" : (current?.company || "Acesso do cliente");
-  return `<div class="demo-bar"><span><i></i> Prévia visual <span class="demo-detail">· Dados ilustrativos, salvos neste navegador</span></span><a href="#/${admin ? "inicio" : "admin"}">${icon(admin ? "eye" : "settings")} ${admin ? "Ver área do cliente" : "Conhecer painel admin"} ${icon("arrow")}</a></div>
-  <div class="app-shell ${admin ? "admin-shell" : ""}"><button class="sidebar-overlay ${menuOpen ? "show" : ""}" data-action="menu" aria-label="Fechar menu"></button>
+  return `<div class="app-shell ${admin ? "admin-shell" : ""}"><button class="sidebar-overlay ${menuOpen ? "show" : ""}" data-action="menu" aria-label="Fechar menu"></button>
   <aside class="sidebar ${menuOpen ? "open" : ""}" aria-label="Navegação principal" ${hiddenMobileMenu ? 'inert aria-hidden="true"' : ""}><a href="#/${admin ? "admin" : "inicio"}" class="brand">${logo()}<span>${esc(admin ? "Painel administrativo" : brand().portal)}</span></a><div class="sidebar-label">${admin ? "GERENCIAMENTO" : "SEU ESPAÇO"}</div><nav>${nav
     .map(([id, ic, label]) => {
       const selected = admin ? (sub || "") === id : root === id;
@@ -553,6 +569,13 @@ function adminReports() {
     `<div class="stats-grid">${statsCard("users", state.report?.clients ?? state.clients.length, "Clientes cadastrados", "Banco de dados")}${statsCard("trophy", state.report?.published_courses ?? activeCourses().length, "Trilhas publicadas", "Conteúdo ativo", "orange")}${statsCard("play", state.report?.published_lessons ?? 0, "Aulas publicadas", "Conteúdo disponível")}${statsCard("mail", state.clients.filter((c) => c.status === "invited").length, "Convites pendentes", "Aguardando ativação", "green")}</div><section class="panel"><div class="section-title"><h2>Progresso individual</h2></div>${clientTable()}</section>`
   );
 }
+function adminAudit() {
+  const audit = state.audit || { events: [], total: 0, page: 1, pages: 1 };
+  const resultLabel = (value) => value === "error" ? badge("Erro", "danger") : value === "warning" ? badge("Atenção", "orange") : badge("Sucesso", "success");
+  const rows = (audit.events || []).map((event) => `<tr><td>${esc(new Date(String(event.created_at).replace(" ", "T") + "Z").toLocaleString("pt-BR"))}</td><td><strong>${esc(event.user_name || "Sistema")}</strong><small>${esc(event.user_email || "")}</small></td><td>${esc(event.action_name)}</td><td>${esc(event.entity_type)}${event.entity_id ? `<small>#${esc(event.entity_id)}</small>` : ""}</td><td>${resultLabel(event.result)}${event.message ? `<small class="audit-message">${esc(event.message)}</small>` : ""}</td></tr>`).join("") || `<tr><td colspan="5">Nenhum evento encontrado.</td></tr>`;
+  return heading("SEGURANÇA E CONTROLE", "Auditoria do portal", "Consulte as ações e falhas registradas no sistema.", `<button class="btn btn-secondary" data-action="export-audit">${icon("download")} Exportar CSV</button>`) +
+    `<section class="panel audit-panel"><form id="audit-filter" class="filter-bar"><label>Buscar por usuário ou ação<input name="q" type="search" placeholder="Ex.: login, convite, aula"></label><label>Resultado<select name="result"><option value="">Todos</option><option value="success">Sucesso</option><option value="warning">Atenção</option><option value="error">Erro</option></select></label><label>Tipo<select name="type"><option value="">Todos</option><option value="user">Usuário</option><option value="client">Cliente</option><option value="course">Curso</option><option value="module">Módulo</option><option value="lesson">Aula</option><option value="media">Mídia</option><option value="request">Requisição</option></select></label><button class="btn btn-primary" type="submit">Filtrar</button></form><div class="table-scroll"><table><thead><tr><th>Data e hora</th><th>Usuário</th><th>Ação</th><th>Registro</th><th>Resultado</th></tr></thead><tbody>${rows}</tbody></table></div><div class="section-title audit-footer"><span class="muted">${audit.total || 0} evento(s) registrado(s)</span><span class="muted">Página ${audit.page || 1} de ${audit.pages || 1}</span></div></section>`;
+}
 function customization() {
   return (
     heading(
@@ -649,6 +672,7 @@ function render() {
         midia: [adminMedia, "Biblioteca de mídia"],
         comunicacao: [adminCommunication, "Comunicação"],
         relatorios: [adminReports, "Relatórios"],
+        auditoria: [adminAudit, "Auditoria"],
         personalizacao: [customization, "Personalização"],
         operacao: [operations, "Configurações"],
       };
@@ -686,7 +710,7 @@ function render() {
             "Privacidade e termos",
             "Espaço reservado para os documentos do escritório.",
           ) +
-          '<section class="panel"><h2>Sobre esta portal</h2><p>Esta portal utiliza dados cadastrados e salva alterações apenas neste navegador. Não há autenticação, banco de dados ou envio de e-mails.</p><p>O aviso de privacidade e os termos oficiais serão cadastrados e revisados pelo responsável pelo escritório antes da operação com clientes reais.</p></section>';
+          '<section class="panel"><h2>Sobre este portal</h2><p>Este portal utiliza autenticação, banco de dados e controles de acesso para proteger as informações dos clientes.</p><p>Os dados são tratados pelo escritório responsável conforme sua política de privacidade e os requisitos aplicáveis da LGPD.</p></section>';
         section = "Privacidade";
       } else {
         const p = pages[root];
@@ -1043,6 +1067,12 @@ function bindForms() {
     const result=await apiRequest("notification.send", { method:"POST", body:JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))) });
     if(status) status.textContent=result?.ok ? `${result.sent} notificação(ões) enviada(s).` : "Não foi possível enviar. Verifique a configuração de e-mail da hospedagem.";
     if(result?.ok) e.currentTarget.reset();
+  });
+  $("#audit-filter")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const values = Object.fromEntries(new FormData(e.currentTarget));
+    state.audit = await apiRequest("audit.list", { query: values }) || state.audit;
+    render();
   });
   $("#course-search")?.addEventListener("input", (e) => {
     search = e.target.value;
@@ -1518,6 +1548,11 @@ document.addEventListener("click", async (e) => {
       lines.map((row) => row.map(csvSafe).join(";")).join("\r\n"),
       "text/csv;charset=utf-8",
     );
+    return;
+  }
+  if (action === "export-audit") {
+    const lines = [["Data", "Usuário", "E-mail", "Ação", "Tipo", "Registro", "Resultado", "Mensagem"], ...(state.audit?.events || []).map((event) => [event.created_at, event.user_name || "Sistema", event.user_email || "", event.action_name, event.entity_type, event.entity_id || "", event.result, event.message || ""])];
+    download("auditoria.csv", lines.map((row) => row.map(csvSafe).join(";")).join("\r\n"), "text/csv;charset=utf-8");
     return;
   }
   if (action === "email-preview") {

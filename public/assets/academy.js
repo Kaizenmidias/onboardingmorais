@@ -1,4 +1,4 @@
-// Apresentação da área de cursos. Recebe os dados e serviços da prévia por contrato.
+// Apresentação da área de cursos. Recebe os dados e serviços do portal por contrato.
 export function createAcademy(ctx) {
   const {
     state,

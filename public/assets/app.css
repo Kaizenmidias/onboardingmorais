@@ -291,6 +291,10 @@ h1:focus {
   background: #eaf5ee;
   color: #2c7f5d;
 }
+.badge.danger {
+  background: #fdecec;
+  color: #b33636;
+}
 .badge.neutral {
   background: #f0f2f6;
   color: #626b7d;
@@ -2417,6 +2421,10 @@ tr:last-child td {
 .selected-media-list { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .selected-media-item { display: inline-flex; min-width: 0; max-width: min(260px, 100%); padding: 5px 8px; background: #eef2f7; border-radius: 6px; font-size: 11px; }
 .selected-media-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-panel .filter-bar { align-items: end; }
+.audit-panel table td > small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+.audit-panel .audit-message { max-width: 320px; white-space: normal; }
+.audit-footer { margin-top: 14px; }
 .btn.is-selected { background: #e8f5ee; border-color: #4ca77a; color: #237448; }
 .client-return-link { display: inline-flex; align-items: center; gap: 5px; color: var(--navy); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .client-return-link:hover, .client-return-link:focus-visible { color: var(--accent); }

@@ -60,9 +60,41 @@ function require_user(array $roles = []): array {
     if ($roles && !in_array($user['role'], $roles, true)) json_response(['error' => 'Acesso negado.'], 403);
     return $user;
 }
-function audit(?int $userId, string $action, string $type, string|int|null $entity = null): void {
-    $s = db()->prepare('INSERT INTO audit_events (user_id, action_name, entity_type, entity_id, created_at) VALUES (?,?,?,?,?)');
-    $s->execute([$userId, $action, $type, $entity === null ? null : (string)$entity, now()]);
+function ensure_audit_schema(): void {
+    static $ready = false;
+    if ($ready) return;
+    $ready = true;
+    $columns = [
+        'message' => 'VARCHAR(500) NULL AFTER result',
+        'ip_address' => 'VARCHAR(45) NULL AFTER message',
+        'user_agent' => 'VARCHAR(255) NULL AFTER ip_address',
+        'request_id' => 'CHAR(32) NULL AFTER user_agent',
+    ];
+    foreach ($columns as $name => $definition) {
+        try { db()->exec("ALTER TABLE audit_events ADD COLUMN {$name} {$definition}"); } catch (Throwable) { /* já existe */ }
+    }
+    foreach ([
+        'idx_audit_result_created' => 'ADD KEY idx_audit_result_created (result, created_at)',
+        'idx_audit_entity' => 'ADD KEY idx_audit_entity (entity_type, entity_id)',
+    ] as $index => $definition) {
+        try { db()->exec("ALTER TABLE audit_events {$definition}"); } catch (Throwable) { /* já existe */ }
+    }
+}
+function audit(?int $userId, string $action, string $type, string|int|null $entity = null, string $result = 'success', ?string $message = null): void {
+    try {
+        ensure_audit_schema();
+        $requestId = $_SERVER['HTTP_X_REQUEST_ID'] ?? bin2hex(random_bytes(16));
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        $agent = $_SERVER['HTTP_USER_AGENT'] ?? null;
+        $s = db()->prepare('INSERT INTO audit_events (user_id, action_name, entity_type, entity_id, result, message, ip_address, user_agent, request_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)');
+        $s->execute([$userId, substr($action, 0, 100), substr($type, 0, 60), $entity === null ? null : substr((string)$entity, 0, 64), substr($result, 0, 20), $message === null ? null : substr($message, 0, 500), $ip ? substr($ip, 0, 45) : null, $agent ? substr($agent, 0, 255) : null, substr((string)$requestId, 0, 32), now()]);
+    } catch (Throwable $ignored) {
+        error_log('Falha ao registrar auditoria: ' . $ignored->getMessage());
+    }
+}
+function audit_failure(?int $userId, string $action, string $type = 'request', string|int|null $entity = null, ?Throwable $error = null): void {
+    $message = $error ? preg_replace('/\s+/', ' ', trim($error->getMessage())) : 'Operação não concluída.';
+    audit($userId, $action, $type, $entity, 'error', $message ?: 'Operação não concluída.');
 }
 function slugify(string $value): string {
     $value = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value) ?: $value;
