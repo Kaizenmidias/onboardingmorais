@@ -1237,6 +1237,16 @@ function bindVideo() {
   const v = $("#lesson-video"),
     id = route()[1];
   if (!v) return;
+  const stage = v.closest(".academy-video-stage"), overlay = stage?.querySelector(".academy-video-overlay-play");
+  const syncOverlay = () => overlay?.classList.toggle("is-hidden", !v.paused && !v.ended);
+  overlay?.addEventListener("click", () => {
+    if (v.paused || v.ended) void v.play().catch(() => toast("Não foi possível reproduzir este vídeo."));
+    else v.pause();
+  });
+  v.addEventListener("play", syncOverlay);
+  v.addEventListener("pause", syncOverlay);
+  v.addEventListener("ended", syncOverlay);
+  syncOverlay();
   v.addEventListener("loadedmetadata", () => {
     v.currentTime = Math.min(
       state.positions[id] || 0,

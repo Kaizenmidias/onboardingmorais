@@ -1152,6 +1152,37 @@
   display: block;
   background: black;
 }
+.academy-video-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #05070c;
+}
+.academy-video-stage video {
+  position: relative;
+  z-index: 1;
+}
+.academy-video-overlay-play {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid #ffffff66;
+  border-radius: 50%;
+  background: #ff6a1ae8;
+  color: #fff;
+  box-shadow: 0 10px 35px #0008, 0 0 0 9px #ffffff12;
+  cursor: pointer;
+  transition: opacity .2s ease, transform .2s ease, background .2s ease;
+}
+.academy-video-overlay-play:hover { transform: translate(-50%, -50%) scale(1.06); background: #ff7b35; }
+.academy-video-overlay-play .icon { width: 28px; height: 28px; fill: currentColor; margin-left: 4px; }
+.academy-video-overlay-play.is-hidden { opacity: 0; pointer-events: none; }
 .academy-video-placeholder {
   width: 100%;
   height: 100%;
@@ -1817,7 +1848,13 @@
   .academy-topbar-actions {
     min-width: 0;
     justify-content: flex-end;
+    gap: 7px;
+    overflow: hidden;
   }
+  .academy-admin-link { max-width: 112px; min-width: 0; padding: 7px 5px; gap: 4px; font-size: 9px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .academy-admin-link .icon { width: 11px; height: 11px; flex: 0 0 auto; }
+  .academy-profile { min-width: 0; max-width: 92px; gap: 5px; }
+  .academy-profile > span:not(.avatar) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
   .academy-shell:not(.academy-theater) .academy-topbar {
     height: 125px;
     align-content: center;
@@ -1841,6 +1878,8 @@
   .academy-search .icon {
     width: 16px;
   }
+  .academy-video-overlay-play { width: 56px; height: 56px; }
+  .academy-video-overlay-play .icon { width: 22px; height: 22px; }
   .academy-menu-trigger {
     height: 32px;
     width: 32px;
@@ -2163,6 +2202,9 @@
   .academy-topbar .brand-logo {
     width: 115px;
   }
+  .academy-admin-link { max-width: 86px; font-size: 8px; }
+  .academy-profile { max-width: 70px; }
+  .academy-profile > span:not(.avatar) { display: none; }
   .academy-hero {
     height: 340px;
   }
