@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=notes-20261105c";
+import { createAcademy } from "./academy.js?v=notes-20261106a";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
@@ -203,6 +203,7 @@ async function loadBackend() {
   if (data.notes && typeof data.notes === "object") {
     noteStore = { ...noteStore, ...state.notes, ...data.notes };
     state.notes = noteStore;
+    Object.keys(data.notes).forEach((id) => delete state.noteDrafts[String(id)]);
   }
   if (Array.isArray(data.media)) {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
