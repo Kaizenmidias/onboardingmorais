@@ -763,7 +763,7 @@ const modalFooter = (label = "Salvar") =>
   `<div class="modal-footer"><button class="btn btn-secondary" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="submit">${label} ${icon("check")}</button></div>`;
 function clientForm(id) {
   const c = state.clients.find((c) => c.id === id) || {};
-  const accessPassword = !id ? input("Senha de acesso", "password", "", "password", 'required minlength="8" autocomplete="new-password"') : "";
+  const accessPassword = input("Senha de acesso", "password", "", "password", `${id ? "" : "required "}minlength="8" autocomplete="new-password"`);
   openModal(
     id ? "Editar cliente" : "Um novo começo para seu cliente",
     `<form>${input("Nome do responsável", "name", c.name, "text", 'required maxlength="80"')}${input("Empresa", "company", c.company, "text", 'required maxlength="100"')}${input("E-mail", "email", c.email, "email", "required")}<div class="form-grid">${input("CNPJ (opcional no portal)", "cnpj", c.cnpj, "text", 'maxlength="18"')}${input("Telefone", "phone", c.phone, "tel")}${input("WhatsApp", "whatsapp", c.whatsapp, "tel")}${input("Grupo", "group", c.group || "Novos clientes")}${input("Expiração do acesso", "expires", c.expires, "date")}</div><fieldset><legend>Trilhas liberadas</legend>${state.courses.map((v) => `<label class="checkbox-label"><input type="checkbox" name="courses" value="${v.id}" ${(c.courses || ["primeiros-passos"]).includes(v.id) ? "checked" : ""}>${esc(v.title)}</label>`).join("")}</fieldset><p class="form-note">Cadastro de portal. O convite será enviado ao salvar.</p>${modalFooter()}</form>`,
@@ -793,7 +793,7 @@ function clientForm(id) {
       toast("Cadastro salvo no portal.");
     },
   );
-  if (!id) modal.querySelector(".form-grid")?.insertAdjacentHTML("beforebegin", accessPassword);
+  modal.querySelector(".form-grid")?.insertAdjacentHTML("beforebegin", accessPassword);
 }
 function mediaUrl(file) {
   return file?.url || (file?.id ? `media.php?id=${encodeURIComponent(file.id)}` : "");

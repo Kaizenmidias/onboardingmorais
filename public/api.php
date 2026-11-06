@@ -47,7 +47,7 @@ try {
     if ($action === 'login') {
         require_method('POST'); check_csrf(); $input = json_input();
         $email = strtolower(trim((string)($input['email'] ?? ''))); $password = (string)($input['password'] ?? '');
-        $s = db()->prepare("SELECT u.id,u.name,u.email,c.company,u.password_hash,u.role,u.status,u.client_id,u.auth_version FROM users u LEFT JOIN clients c ON c.id=u.client_id WHERE u.email=? AND u.status='active' AND (u.role<>'client' OR (c.status='active' AND (c.expires_at IS NULL OR c.expires_at>=CURDATE()))) LIMIT 1"); $s->execute([$email]); $user = $s->fetch();
+        $s = db()->prepare("SELECT u.id,u.name,u.email,c.company,u.password_hash,u.role,u.status,u.client_id,u.auth_version FROM users u LEFT JOIN clients c ON c.id=u.client_id WHERE u.email=? AND u.status='active' AND (u.role<>'client' OR (((c.status='active') OR (c.status='pending' AND u.password_hash IS NOT NULL AND u.password_hash<>'')) AND (c.expires_at IS NULL OR c.expires_at>=CURDATE()))) LIMIT 1"); $s->execute([$email]); $user = $s->fetch();
         if (!$user || !$user['password_hash'] || !password_verify($password, $user['password_hash']) || $user['status'] !== 'active') { audit(null,'login','user',null,'error','Credenciais inválidas.'); json_response(['error' => 'E-mail ou senha inválidos.'], 422); }
         session_regenerate_id(true); $_SESSION['user'] = ['id'=>(int)$user['id'],'name'=>$user['name'],'email'=>$user['email'],'company'=>$user['company'] ?? null,'role'=>$user['role'],'client_id'=>$user['client_id'] ? (int)$user['client_id'] : null,'auth_version'=>(int)$user['auth_version']];
         db()->prepare('UPDATE users SET last_login_at=?,updated_at=? WHERE id=?')->execute([now(),now(),$user['id']]); audit((int)$user['id'],'login','user',$user['id']);
@@ -55,6 +55,9 @@ try {
     }
     if ($action === 'logout') { require_method('POST'); check_csrf(); $id = current_user()['id'] ?? null; session_destroy(); if ($id) audit((int)$id,'logout','user',$id); json_response(['ok'=>true]); }
     if ($action === 'bootstrap') {
+        // Contas com senha já definida estão prontas para acesso. Corrige
+        // cadastros antigos que permaneceram como convite pendente.
+        try { db()->exec("UPDATE clients c INNER JOIN users u ON u.client_id=c.id SET c.status='active', u.status='active' WHERE c.status='pending' AND u.password_hash IS NOT NULL AND u.password_hash<>''"); } catch (Throwable $activationError) { error_log($activationError->getMessage()); }
         $user = current_user();
         // Corrige acessos de cliente criados diretamente na tabela users sem o
         // respectivo registro em clients. Isso garante que contas existentes
