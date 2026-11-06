@@ -20,6 +20,7 @@ const fresh = () => ({
   lastLesson: "l5",
   positions: {},
   notes: {},
+  noteDrafts: {},
   saved: [],
   ratings: {},
   files: [],
@@ -52,6 +53,7 @@ if (!state.catalogRevision) {
   state.catalogRevision = 2;
 }
 state.notes ??= {};
+state.noteDrafts ??= {};
 state.saved ??= [];
 state.ratings ??= {};
 // Compatibilidade com estados antigos salvos no navegador: garante que todas
@@ -184,7 +186,7 @@ async function loadBackend() {
   if (Array.isArray(data.courses)) {
     state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), coverImage: course.cover_image || course.coverImage || "", landscapeImage: course.landscape_image || course.landscapeImage || "", sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
   }
-  if (data.notes && typeof data.notes === "object") state.notes = data.notes;
+  if (data.notes && typeof data.notes === "object") state.notes = { ...state.notes, ...data.notes };
   if (Array.isArray(data.media)) {
     state.files = data.media.map((file) => ({ id: String(file.id), name: file.original_name, size: Number(file.file_size || 0), type: file.mime_type, status: file.status }));
   }
@@ -264,6 +266,7 @@ const academy = () =>
     outlineOpen,
     lessonTab,
     mediaUrls,
+    noteDrafts: state.noteDrafts,
     persist,
     courseFilter,
     search,
@@ -587,26 +590,11 @@ function blocksForm() {
   return `<h2>Uma página no seu ritmo.</h2><p class="muted">Ative, desative e reordene as seções da página inicial.</p><div class="block-list">${state.settings.blocks.map((b, i) => `<div class="block-row"><span class="block-grip">⋮⋮</span><strong>${esc(b.label)}</strong><button class="icon-btn" data-action="move-block" data-id="${b.id}" data-direction="up" ${i === 0 ? "disabled" : ""} aria-label="Mover ${esc(b.label)} para cima">↑</button><button class="icon-btn" data-action="move-block" data-id="${b.id}" data-direction="down" ${i === state.settings.blocks.length - 1 ? "disabled" : ""} aria-label="Mover ${esc(b.label)} para baixo">↓</button><button class="switch ${b.enabled ? "on" : ""}" role="switch" aria-checked="${b.enabled}" aria-label="Exibir ${esc(b.label)}" data-action="toggle-block" data-id="${b.id}"><span></span></button></div>`).join("")}</div><div class="inline-note">${icon("check")} Alterações aplicadas automaticamente nesta portal.</div>`;
 }
 function operations() {
-  return (
-    heading(
-      "CUIDADO COM A SUA PLATAFORMA",
-      "Configurações do ambiente",
-      "Visão técnica para acompanhar as próximas etapas da instalação.",
-    ) +
-    `<section class="panel"><h2>Ambiente informado</h2><dl class="data-grid"><div><dt>Domínio de referência</dt><dd>onboarding.kaizenmidias.com</dd></div><div><dt>Hospedagem atual</dt><dd>aaPanel • informado pelo responsável</dd></div><div><dt>PHP de destino</dt><dd>8.4 • informado pelo responsável</dd></div><div><dt>Versão desta entrega</dt><dd>0.2.0 • portal visual</dd></div></dl><div class="inline-note">${icon("help")} Dados de referência. Esta tela não inspeciona nem se conecta à hospedagem.</div></section><div class="operations-grid">${[
-      ["lock", "Autenticação e permissões"],
-      ["folder", "Mídia privada e upload retomável"],
-      ["mail", "SMTP e convites"],
-      ["shield", "Backup e diagnóstico"],
-    ]
-      .map(
-        ([ic, n]) =>
-          `<section class="panel operation-card">${icon(ic)}<h3>${n}</h3>${badge("Integração posterior")}<p>Previsto na arquitetura, após aprovação da interface.</p></section>`,
-      )
-      .join(
-        "",
-      )}</div><button class="btn btn-secondary" data-action="reset-demo">Restaurar dados da portal</button>`
-  );
+  return heading(
+    "CONFIGURAÇÕES",
+    "Configurações do portal",
+    "A identidade visual, os textos e os canais de comunicação são gerenciados nas áreas correspondentes.",
+  ) + `<section class="panel"><h2>Áreas de configuração</h2><div class="row-actions">${link("/admin/personalizacao", "Personalização", "btn btn-secondary")}${link("/admin/comunicacao", "Comunicação", "btn btn-secondary")}</div></section>`;
 }
 function profilePage() {
   const user = window.__currentUser || (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
@@ -633,7 +621,7 @@ function render() {
     state.positions[playingVideo.dataset.lessonId] = playingVideo.currentTime;
   const noteDraft = $("#lesson-notes");
   if (noteDraft?.dataset.lessonId) {
-    state.notes[noteDraft.dataset.lessonId] = noteDraft.value;
+    state.noteDrafts[noteDraft.dataset.lessonId] = noteDraft.value;
     persist();
   }
   applyBrand();
@@ -1267,9 +1255,11 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if (action === "save-note") {
-    state.notes[id] = $("#lesson-notes")?.value || "";
+    const note = $("#lesson-notes")?.value || "";
+    state.notes[id] = note;
+    delete state.noteDrafts[id];
     persist();
-    void apiRequest("lesson.note", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,note:state.notes[id]}) });
+    void apiRequest("lesson.note", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,note}) });
     $("#notes-status").textContent = "Anotação salva no seu acesso.";
     toast("Anotação salva no portal.");
     render();

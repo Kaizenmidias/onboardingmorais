@@ -21,6 +21,7 @@ export function createAcademy(ctx) {
     outlineOpen,
     lessonTab,
     mediaUrls,
+    noteDrafts,
     persist,
     courseFilter,
     search,
@@ -256,7 +257,7 @@ export function createAcademy(ctx) {
           .join("") || "<p>Nenhum material disponível para esta aula.</p>"
       }`;
     if (lessonTab === "notes")
-      return `<h2>Suas anotações</h2><p class="form-note">Registre aqui os pontos importantes desta aula. As anotações ficam privadas e vinculadas ao seu acesso.</p>${state.notes[l.id] ? `<div class="saved-note"><strong>Anotação salva</strong><p>${esc(state.notes[l.id]).replace(/\n/g,"<br>")}</p></div>` : `<div class="saved-note empty-note"><strong>Nenhuma anotação salva</strong><p>As anotações que você salvar aparecerão aqui.</p></div>`}<label for="lesson-notes">Nova anotação</label><textarea id="lesson-notes" data-lesson-id="${l.id}" rows="6" maxlength="12000" placeholder="Digite uma nova anotação…"></textarea><div class="academy-notes-footer"><span id="notes-status" role="status">Anotações salvas no seu acesso.</span><button class="btn btn-primary" data-action="save-note" data-id="${l.id}">Salvar anotação ${icon("check")}</button></div>`;
+      return `<h2>Suas anotações</h2><p class="form-note">Registre aqui os pontos importantes desta aula. As anotações ficam privadas e vinculadas ao seu acesso.</p>${state.notes[l.id] ? `<div class="saved-note"><strong>Anotação salva</strong><p>${esc(state.notes[l.id]).replace(/\n/g,"<br>")}</p></div>` : `<div class="saved-note empty-note"><strong>Nenhuma anotação salva</strong><p>As anotações que você salvar aparecerão aqui.</p></div>`}<label for="lesson-notes">Nova anotação</label><textarea id="lesson-notes" data-lesson-id="${l.id}" rows="6" maxlength="12000" placeholder="Digite uma nova anotação…">${esc(noteDrafts?.[l.id] || "")}</textarea><div class="academy-notes-footer"><span id="notes-status" role="status">Anotações salvas no seu acesso.</span><button class="btn btn-primary" data-action="save-note" data-id="${l.id}">Salvar anotação ${icon("check")}</button></div>`;
     return `<h2>Sobre esta aula</h2>${l.body ? `<div class="lesson-description">${esc(l.body).replace(/\n/g,"<br>")}</div>` : "<p>Esta aula ainda não possui uma descrição cadastrada.</p>"}`;
   }
   function lesson(id) {
