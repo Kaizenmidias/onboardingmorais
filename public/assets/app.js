@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=notes-20261106f";
+import { createAcademy } from "./academy.js?v=notes-20261106g";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
@@ -863,7 +863,7 @@ function courseForm(id, preset = {}) {
     ]
       .map(
         ([key, label]) =>
-          `<div class="course-image-field"><button type="button" class="btn btn-secondary" data-open-course-media="${key}">${icon("folder")} Selecionar na biblioteca</button><div id="preview-${key}" class="course-image-sample">${images[key] ? `<img src="${esc(images[key])}" alt="Capa selecionada">` : "Capa automática"}</div><button type="button" class="btn btn-secondary ${images[key] ? "is-selected" : ""}" data-clear-image="${key}">Usar capa automática</button></div>`,
+          `<div class="course-image-field"><button type="button" class="btn btn-secondary" data-open-course-media="${key}">${icon("folder")} Selecionar na biblioteca</button><div id="preview-${key}" class="course-image-sample">${images[key] ? `<img src="${esc(images[key])}" alt="Capa selecionada">` : "Capa automática"}</div><button type="button" class="btn btn-secondary ${images[key] ? "" : "is-selected"}" data-clear-image="${key}">Usar capa automática</button></div>`,
       )
       .join(
         "",
@@ -960,6 +960,7 @@ function lessonForm(courseId, moduleId, id, preset = {}) {
       toast("Aula salva no portal.");
     },
   );
+  modal.querySelector('select[name="kind"]')?.closest("label")?.remove();
   $("#choose-lesson-video")?.addEventListener("click", () => openMediaPicker({ accept: "video", onSelect: ([file]) => { lessonMediaId = String(file.id); lessonForm(courseId, moduleId, id, { media_id: lessonMediaId, materials: lessonMaterials }); } }));
   $("#choose-lesson-materials")?.addEventListener("click", () => openMediaPicker({ accept: "all", multiple: true, onSelect: (files) => { lessonMaterials = files.filter(f => !String(f.type || "").startsWith("video/")).map(f => String(f.id)); lessonForm(courseId, moduleId, id, { media_id: lessonMediaId, materials: lessonMaterials }); } }));
 }

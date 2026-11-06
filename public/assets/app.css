@@ -2411,7 +2411,7 @@ tr:last-child td {
 .media-video-thumb { width: 100%; height: 100%; display: grid; place-items: center; background: linear-gradient(135deg, #64748b, #1e293b); color: #fff; }
 .media-video-thumb .icon { width: 18px; height: 18px; }
 .media-picker-copy { min-width: 0; flex: 1 1 auto; overflow: hidden; }
-.media-picker-item strong, .media-picker-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-picker-item strong, .media-picker-item small { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-picker-item strong { font-size: 12px; }
 .media-picker-item small { color: #64748b; font-size: 10px; margin-top: 3px; }
 .media-picker-progress, .media-upload-progress { margin: 10px 0; }
