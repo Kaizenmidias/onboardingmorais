@@ -2693,6 +2693,14 @@ tr:last-child td {
 .mobile-menu {
   display: none;
 }
+.smtp-panel { margin-top: 22px; }
+.smtp-form { margin-top: 22px; }
+.smtp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
+.smtp-grid label { display: flex; flex-direction: column; gap: 7px; font-size: 11px; font-weight: 700; color: var(--text); }
+.smtp-grid input, .smtp-grid select { min-height: 42px; width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); padding: 0 12px; font: inherit; font-weight: 500; }
+.smtp-grid input:focus, .smtp-grid select:focus { outline: 2px solid #ff6a1a55; border-color: #ff6a1a; }
+.smtp-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.smtp-status { min-height: 18px; margin: 12px 0 0; color: #ff9b72; font-size: 12px; }
 dialog {
   padding: 0;
   border: 1px solid var(--line);

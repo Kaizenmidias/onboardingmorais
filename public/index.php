@@ -21,8 +21,8 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-sr
     <link rel="icon" href="assets/brand/favicon.jpg">
     <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="assets/app.css?v=layout-20261106b">
-    <link rel="stylesheet" href="assets/academy.css?v=playmobile-20261106b">
-    <script type="module" src="assets/app.js?v=playmobile-20261106b"></script>
+    <link rel="stylesheet" href="assets/academy.css?v=smtp-menu-20261106">
+    <script type="module" src="assets/app.js?v=smtp-menu-20261106"></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content" data-action="skip-main">Pular para o conteúdo</a>

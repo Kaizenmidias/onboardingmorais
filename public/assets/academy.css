@@ -2643,10 +2643,12 @@
 }
 
 @media (max-width: 760px) {
-  .academy-topbar { grid-template-columns: minmax(0, 1fr) auto !important; overflow: visible; }
-  .academy-topbar-brand { min-width: 0 !important; overflow: hidden; }
+  .academy-topbar { grid-template-columns: minmax(0, 1fr) auto !important; grid-template-rows: 54px 48px; height: 126px !important; align-content: stretch !important; overflow: visible; padding: 8px 16px 10px !important; }
+  .academy-topbar-brand { grid-column: 1; grid-row: 1; min-width: 0 !important; overflow: hidden; gap: 12px !important; }
   .academy-topbar-brand > a { min-width: 0; overflow: hidden; }
-  .academy-topbar-actions { min-width: 0 !important; max-width: 48%; overflow: visible; }
+  .academy-topbar .brand-logo { width: 104px !important; height: 38px !important; }
+  .academy-topbar-actions { grid-column: 2; grid-row: 1; align-self: center; min-width: 0 !important; max-width: none; overflow: visible; justify-self: end; }
+  .academy-search-wrap { grid-column: 1 / -1; grid-row: 2; width: 100% !important; align-self: center; }
   .academy-profile .avatar-icon { flex: 0 0 32px; }
   .academy-drawer { width: min(86vw, 320px); padding: 22px 18px; }
   .academy-drawer nav a, .academy-drawer-bottom > a { min-height: 46px; padding: 12px 10px; }

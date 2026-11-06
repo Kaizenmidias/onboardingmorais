@@ -41,8 +41,26 @@ function json_input(): array {
     $data = json_decode($raw, true);
     return is_array($data) ? $data : $_POST;
 }
-function portal_mail(string $to, string $subject, string $body, string $from = 'gildasiomorais@moraiscontabilidade.com'): bool {
+function portal_mail_config(): array {
     $mail = app_config()['mail'] ?? [];
+    // SMTP settings can be adjusted by an administrator without editing PHP.
+    // The password is intentionally never exposed by bootstrap responses.
+    try {
+        $rows = db()->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'mail.%'")->fetchAll();
+        foreach ($rows as $row) {
+            $name = substr((string)$row['setting_key'], 5);
+            if ($name !== '') $mail[$name] = (string)$row['setting_value'];
+        }
+    } catch (Throwable) { /* settings table may not exist during installation */ }
+    return $mail;
+}
+
+function portal_mail(string $to, string $subject, string $body, string $from = ''): bool {
+    $mail = portal_mail_config();
+    $configuredFrom = (string)($mail['user'] ?? 'gildasiomorais@moraiscontabilidade.com');
+    // Older API calls passed the original demonstrator address explicitly.
+    // Treat it as legacy so all outgoing messages use the configured mailbox.
+    $from = ($from === '' || $from === 'gildasiomorais@moraiscontabilidade.com') ? $configuredFrom : $from;
     $headers = "From: {$from}\r\nReply-To: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n";
     if (empty($mail['host']) || empty($mail['user']) || empty($mail['pass'])) {
         return @mail($to, $subject, $body, $headers, '-f' . $from);
@@ -64,6 +82,49 @@ function portal_mail(string $to, string $subject, string $body, string $from = '
         @fwrite($fp, "QUIT\r\n"); fclose($fp); if ($ok) return true;
     }
     return @mail($to, $subject, $body, $headers, '-f' . $from);
+}
+
+function portal_mail_diagnostic(array $mail, string $to): array {
+    $host = trim((string)($mail['host'] ?? ''));
+    $port = (int)($mail['port'] ?? 465);
+    $encryption = strtolower(trim((string)($mail['encryption'] ?? 'ssl')));
+    $user = trim((string)($mail['user'] ?? ''));
+    $pass = (string)($mail['pass'] ?? '');
+    if ($host === '' || $user === '' || $pass === '') return ['ok' => false, 'stage' => 'config', 'message' => 'Preencha servidor, usuário e senha SMTP.'];
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return ['ok' => false, 'stage' => 'recipient', 'message' => 'Informe um e-mail de teste válido.'];
+    if (!in_array($encryption, ['ssl', 'tls', 'none'], true)) return ['ok' => false, 'stage' => 'config', 'message' => 'Criptografia inválida. Use SSL, TLS ou Nenhuma.'];
+    $endpoint = ($encryption === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+    $fp = @stream_socket_client($endpoint, $errno, $errstr, 15, STREAM_CLIENT_CONNECT);
+    if (!$fp) return ['ok' => false, 'stage' => 'connect', 'host' => $host, 'port' => $port, 'encryption' => $encryption, 'message' => "Não foi possível conectar ao servidor ({$errno}): {$errstr}"];
+    stream_set_timeout($fp, 15);
+    $read = static function ($socket): string { $out = ''; while (($line = fgets($socket, 515)) !== false) { $out .= $line; if (isset($line[3]) && $line[3] === ' ') break; } return $out; };
+    $write = static function ($socket, string $command, int $code) use ($read): array { fwrite($socket, $command . "\r\n"); $response = $read($socket); return ['ok' => str_starts_with($response, (string)$code), 'response' => trim($response)]; };
+    $greeting = $read($fp);
+    if (!str_starts_with($greeting, '220')) { fclose($fp); return ['ok' => false, 'stage' => 'greeting', 'message' => 'O servidor SMTP não aceitou a conexão.', 'response' => trim($greeting)]; }
+    $ehlo = $write($fp, 'EHLO ' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), 250);
+    if (!$ehlo['ok']) { fclose($fp); return ['ok' => false, 'stage' => 'ehlo', 'message' => 'O servidor recusou o EHLO.', 'response' => $ehlo['response']]; }
+    if ($encryption === 'tls') {
+        $start = $write($fp, 'STARTTLS', 220);
+        if (!$start['ok'] || !@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) { fclose($fp); return ['ok' => false, 'stage' => 'tls', 'message' => 'Não foi possível ativar TLS.', 'response' => $start['response'] ?? '']; }
+        $ehlo = $write($fp, 'EHLO ' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), 250);
+        if (!$ehlo['ok']) { fclose($fp); return ['ok' => false, 'stage' => 'ehlo', 'message' => 'O servidor recusou o EHLO após TLS.', 'response' => $ehlo['response']]; }
+    }
+    foreach ([['AUTH LOGIN', 334], [base64_encode($user), 334], [base64_encode($pass), 235]] as [$command, $code]) {
+        $auth = $write($fp, (string)$command, (int)$code);
+        if (!$auth['ok']) { fclose($fp); return ['ok' => false, 'stage' => 'auth', 'message' => 'Usuário ou senha SMTP recusados.', 'response' => $auth['response']]; }
+    }
+    $from = $user;
+    $mailFrom = $write($fp, 'MAIL FROM:<' . $from . '>', 250);
+    $rcpt = $mailFrom['ok'] ? $write($fp, 'RCPT TO:<' . $to . '>', 250) : ['ok' => false, 'response' => $mailFrom['response']];
+    if (!$rcpt['ok']) { fclose($fp); return ['ok' => false, 'stage' => 'recipient', 'message' => 'O servidor recusou o destinatário.', 'response' => $rcpt['response']]; }
+    $data = $write($fp, 'DATA', 354);
+    if (!$data['ok']) { fclose($fp); return ['ok' => false, 'stage' => 'data', 'message' => 'O servidor recusou o envio.', 'response' => $data['response']]; }
+    $subject = 'Teste SMTP do portal';
+    $message = "From: {$from}\r\nTo: {$to}\r\nSubject: {$subject}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nEste é um teste de configuração SMTP do portal.\r\n.";
+    fwrite($fp, $message . "\r\n");
+    $sent = $read($fp);
+    fwrite($fp, "QUIT\r\n"); fclose($fp);
+    return ['ok' => str_starts_with($sent, '250'), 'stage' => 'send', 'host' => $host, 'port' => $port, 'encryption' => $encryption, 'message' => str_starts_with($sent, '250') ? 'Teste enviado com sucesso.' : 'O servidor não confirmou o envio.', 'response' => trim($sent)];
 }
 function require_method(string $method): void { if ($_SERVER['REQUEST_METHOD'] !== $method) json_response(['error' => 'Método não permitido.'], 405); }
 function csrf_token(): string {

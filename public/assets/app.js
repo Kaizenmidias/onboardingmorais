@@ -65,6 +65,7 @@ state.audit ??= { events: [], page: 1, pages: 1, total: 0 };
 state.settings ??= structuredClone(defaults);
 state.settings.brand = { ...defaults.brand, ...(state.settings.brand || {}) };
 state.settings.texts = { ...defaults.texts, ...(state.settings.texts || {}) };
+state.settings.mail = { host: "", port: "465", encryption: "ssl", user: "", ...(state.settings.mail || {}) };
 let courseFilter = "all",
   search = "",
   clientFilter = "all",
@@ -200,6 +201,7 @@ async function loadBackend() {
       const [group, name] = key.split(".", 2);
       if (group === "brand" && name) state.settings.brand[name] = value;
       if (group === "texts" && name) state.settings.texts[name] = value;
+      if (group === "mail" && name && name !== "pass") state.settings.mail[name] = value;
     }
   }
   if (Array.isArray(data.courses)) {
@@ -639,7 +641,7 @@ function operations() {
     "CONFIGURAÇÕES",
     "Configurações do portal",
     "A identidade visual, os textos e os canais de comunicação são gerenciados nas áreas correspondentes.",
-  ) + `<section class="panel"><h2>Áreas de configuração</h2><div class="row-actions">${link("/admin/personalizacao", "Personalização", "btn btn-secondary")}${link("/admin/comunicacao", "Comunicação", "btn btn-secondary")}</div></section>`;
+  ) + `<section class="panel"><h2>Áreas de configuração</h2><div class="row-actions">${link("/admin/personalizacao", "Personalização", "btn btn-secondary")}${link("/admin/comunicacao", "Comunicação", "btn btn-secondary")}</div></section><section class="panel smtp-panel"><div class="section-heading"><div><p class="eyebrow">ENTREGA DE E-MAIL</p><h2>Configuração SMTP</h2><p class="muted">Defina o servidor usado para convites, recuperação de senha e notificações. O teste envia uma mensagem real para o destinatário informado.</p></div></div><form id="smtp-form" class="smtp-form"><div class="smtp-grid"><label>Servidor SMTP<input name="host" value="${esc(state.settings.mail.host || "")}" placeholder="mail.seudominio.com" required></label><label>Porta<input name="port" type="number" min="1" max="65535" value="${esc(state.settings.mail.port || "465")}" required></label><label>Criptografia<select name="encryption"><option value="ssl" ${state.settings.mail.encryption === "ssl" ? "selected" : ""}>SSL</option><option value="tls" ${state.settings.mail.encryption === "tls" ? "selected" : ""}>TLS</option><option value="none" ${state.settings.mail.encryption === "none" ? "selected" : ""}>Nenhuma</option></select></label><label>Usuário / e-mail<input name="user" type="email" value="${esc(state.settings.mail.user || "")}" placeholder="nao-responda@dominio.com" required></label><label class="smtp-password">Senha SMTP<input name="pass" type="password" autocomplete="new-password" placeholder="Deixe em branco para manter a atual"></label><label>Enviar teste para<input name="to" type="email" placeholder="seu-email@dominio.com" required></label></div><div class="smtp-actions"><button class="btn btn-secondary" type="button" data-action="smtp-test">Testar conexão e enviar</button><button class="btn btn-primary" type="submit">Salvar SMTP ${icon("check")}</button></div><p class="smtp-status" id="smtp-status" role="status" aria-live="polite"></p></form></section>`;
 }
 function profilePage() {
   const user = window.__currentUser || (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
@@ -1083,6 +1085,22 @@ function bindForms() {
     state.notices[0] = Object.fromEntries(new FormData(e.currentTarget));
     persist();
     toast("Comunicado atualizado no portal.");
+  });
+  $("#smtp-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const status = $("#smtp-status"); if (status) status.textContent = "Salvando…";
+    const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
+    const result = await apiRequest("mail.settings", { method: "POST", body: JSON.stringify(data) });
+    if (result?.ok) { state.settings.mail = { ...state.settings.mail, ...result.mail }; persist(); if (status) status.textContent = "Configuração SMTP salva."; toast("SMTP atualizado."); }
+    else if (status) status.textContent = result?.error || "Não foi possível salvar a configuração SMTP.";
+  });
+  $("[data-action='smtp-test']")?.addEventListener("click", async (e) => {
+    const form = $("#smtp-form"); if (!form) return;
+    const status = $("#smtp-status"); if (status) status.textContent = "Conectando e enviando teste…";
+    const data = Object.fromEntries(new FormData(form));
+    const result = await apiRequest("mail.test", { method: "POST", body: JSON.stringify(data) });
+    if (result?.ok) { if (status) status.textContent = `${result.message} Verifique a caixa de entrada e o spam.`; toast("Teste SMTP enviado."); }
+    else if (status) status.textContent = result?.message || result?.error || "Não foi possível testar o SMTP.";
   });
   $("#notification-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
