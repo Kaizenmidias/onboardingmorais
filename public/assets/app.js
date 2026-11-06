@@ -6,7 +6,7 @@ import {
   faqs,
   icons,
 } from "./data.js";
-import { createAcademy } from "./academy.js?v=notes-20261106a";
+import { createAcademy } from "./academy.js?v=notes-20261106b";
 
 const KEY = "morais-visual-v1";
 const AUTH_KEY = "onboarding-user-v2";
@@ -201,7 +201,8 @@ async function loadBackend() {
     state.courses = data.courses.map((course) => ({ ...course, id: String(course.id), coverImage: course.cover_image || course.coverImage || "", landscapeImage: course.landscape_image || course.landscapeImage || "", sequence: Boolean(Number(course.sequence_required)), modules: (course.modules || []).map((module) => ({ ...module, id: String(module.id), lessons: (module.lessons || []).map((lesson) => ({ ...lesson, id: String(lesson.id), duration: secondsToDuration(lesson.duration_seconds) })) })) }));
   }
   if (data.notes && typeof data.notes === "object") {
-    noteStore = { ...noteStore, ...state.notes, ...data.notes };
+    const normalizeNotes = (value) => (Array.isArray(value) ? value : value ? [value] : []).map((entry, index) => typeof entry === "string" ? { id: `legacy-${index}`, text: entry } : { id: entry.id ?? `note-${index}`, text: entry.text ?? entry.note_text ?? "", created_at: entry.created_at ?? "" }).filter((entry) => entry.text);
+    noteStore = Object.fromEntries(Object.entries({ ...state.notes, ...data.notes }).map(([id, value]) => [id, normalizeNotes(value)]));
     state.notes = noteStore;
     Object.keys(data.notes).forEach((id) => delete state.noteDrafts[String(id)]);
   }
@@ -1287,8 +1288,10 @@ document.addEventListener("click", async (e) => {
   }
   if (action === "save-note") {
     const note = $("#lesson-notes")?.value || "";
-    state.notes[id] = note;
-    noteStore[id] = note;
+    if (!note.trim()) return;
+    const current = Array.isArray(noteStore[id]) ? noteStore[id] : noteStore[id] ? [{ id: `legacy-${Date.now()}`, text: String(noteStore[id]) }] : [];
+    noteStore[id] = [...current, { id: `local-${Date.now()}`, text: note.trim(), created_at: new Date().toISOString() }];
+    state.notes = noteStore;
     delete state.noteDrafts[id];
     persist();
     void apiRequest("lesson.note", { method:"POST", body:JSON.stringify({lesson_id:/^\d+$/.test(String(id))?Number(id):0,note}) });
