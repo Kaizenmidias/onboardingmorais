@@ -125,6 +125,11 @@ try {
         }
         $notes = [];
         if ($user) { try { $legacy = db()->prepare('SELECT lesson_id,note_text,updated_at FROM lesson_notes WHERE user_id=?'); $legacy->execute([(int)$user['id']]); foreach ($legacy as $note) { $key=(string)$note['lesson_id']; $decoded=json_decode((string)$note['note_text'],true); if (is_array($decoded) && array_is_list($decoded)) $notes[$key]=array_values(array_filter($decoded,fn($entry)=>is_array($entry)&&!empty($entry['text']))); else $notes[$key]=[['id'=>'legacy','text'=>$note['note_text'],'created_at'=>$note['updated_at']]]; } } catch (Throwable $ignored) {} }
+        // Expose only non-secret, effective SMTP values so the admin form can
+        // start populated from config.php even before any DB override exists.
+        $effectiveMail = portal_mail_config();
+        unset($effectiveMail['pass']);
+        $out['mail'] = array_merge($effectiveMail, is_array($out['mail'] ?? null) ? $out['mail'] : []);
         json_response(['user'=>$user,'settings'=>$out,'courses'=>$courses,'clients'=>$clients,'groups'=>$groups,'media'=>$media,'notes'=>$notes,'csrf'=>csrf_token()]);
     }
     if ($action === 'mail.settings') {
