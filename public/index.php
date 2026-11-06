@@ -22,7 +22,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-sr
     <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="assets/app.css?v=layout-20261105e">
     <link rel="stylesheet" href="assets/academy.css?v=layout-20261105c">
-    <script type="module" src="assets/app.js?v=release-20261106c"></script>
+    <script type="module" src="assets/app.js?v=release-20261106d"></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content" data-action="skip-main">Pular para o conteúdo</a>

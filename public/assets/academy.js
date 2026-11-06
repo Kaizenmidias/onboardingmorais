@@ -1,5 +1,6 @@
 // Apresentação da área de cursos. Recebe os dados e serviços do portal por contrato.
 export function createAcademy(ctx) {
+  const activeLessonTab = ctx.lessonTab === "notes" ? "description" : ctx.lessonTab;
   const {
     state,
     esc,
@@ -248,7 +249,7 @@ export function createAcademy(ctx) {
       )}</div><span>${progress(c)}%</span></div><label class="syllabus-search"><input id="lesson-search" placeholder="Pesquisar aula" aria-label="Pesquisar aula">${icon("search")}</label><div id="syllabus-modules">${outline(c, l.id)}</div></div></aside>`;
   }
   function tabContent(c, l) {
-    if (lessonTab === "materials")
+    if (activeLessonTab === "materials")
       return `<h2>Materiais desta aula</h2>${
         (l.materials || []).map((id) => state.files.find((v) => String(v.id) === String(id))).filter(Boolean)
           .map(
@@ -257,7 +258,7 @@ export function createAcademy(ctx) {
           )
           .join("") || "<p>Nenhum material disponível para esta aula.</p>"
       }`;
-    if (lessonTab === "notes") {
+    if (activeLessonTab === "notes") {
       const extractNoteItems = (value) => { if (typeof value === "string") return [{ text: value }]; if (Array.isArray(value)) return value.flatMap(extractNoteItems); if (value && typeof value === "object") { if (value.text !== undefined) return extractNoteItems(value.text).map((item) => ({ ...item, created_at: value.created_at || item.created_at })); if (value.note_text !== undefined) return extractNoteItems(value.note_text).map((item) => ({ ...item, created_at: value.created_at || item.created_at })); return Object.values(value).flatMap(extractNoteItems); } return []; };
       const savedNotes = extractNoteItems(notes?.[String(l.id)] ?? state.notes?.[String(l.id)] ?? "");
       const notesMarkup = savedNotes.length ? `<ul class="saved-notes-list">${savedNotes.map((entry) => `<li>${esc(entry.text).replace(/\n/g,"<br>")}</li>`).join("")}</ul>` : "";
@@ -284,15 +285,14 @@ export function createAcademy(ctx) {
     return `<section class="academy-classroom"><a class="back-link" href="#/inicio">${icon("left")} Voltar para os cursos</a><div class="classroom-title"><div><span class="eyebrow">${esc(m.title)} • Aula ${idx + 1}</span><h1 tabindex="-1">${esc(l.title)}</h1></div><button class="icon-btn syllabus-toggle" data-action="toggle-outline" aria-expanded="${outlineOpen}" aria-label="${outlineOpen ? "Ocultar" : "Mostrar"} conteúdo do curso">${icon("book")}</button></div><div class="academy-video">${video ? `<video id="lesson-video" data-lesson-id="${l.id}" src="${esc(video)}" controls playsinline preload="metadata" aria-label="Vídeo selecionado para prévia"></video>` : `<div class="academy-video-placeholder"><span class="academy-player-brand">${esc(b.name)}</span><div><span class="eyebrow">${esc(c.title)}</span><h2>${esc(l.title)}</h2><button class="academy-play-button" data-action="preview-video" data-id="${l.id}" aria-label="Selecionar vídeo">${icon("play")}</button><small>Vídeo ainda não disponível para esta aula</small></div><div class="academy-player-bottom">${icon("play")} <span>00:00 / ${esc(l.duration)}</span><i></i>${icon("settings")} ${icon("grid")}</div></div>`}</div><div class="classroom-toolbar"><div class="classroom-rating" role="group" aria-label="Avaliar aula"><span>Avaliar aula</span>${[1, 2, 3, 4, 5].map((n) => `<button aria-label="Avaliar com ${n} ${n === 1 ? "estrela" : "estrelas"}" aria-pressed="${rating === n}" data-action="rate-lesson" data-id="${id}" data-rating="${n}" class="${rating >= n ? "selected" : ""}">★</button>`).join("")}</div><div class="classroom-actions"><button class="btn academy-outline-btn ${saved ? "saved" : ""}" data-action="save-lesson" data-id="${id}" aria-pressed="${saved}">${icon("book")} ${saved ? "Aula salva" : "Salvar aula"}</button><button class="btn academy-outline-btn ${done ? "completed" : ""}" data-action="complete" data-id="${id}">${icon("check")} ${done ? "Aula concluída" : "Concluir aula"}</button>${idx ? `<a class="icon-btn" aria-label="Aula anterior" href="#/aula/${ls[idx - 1].id}">${icon("left")}</a>` : '<button class="icon-btn" disabled aria-label="Aula anterior">' + icon("left") + "</button>"}${idx < ls.length - 1 ? `<a class="icon-btn" aria-label="Próxima aula" href="#/aula/${ls[idx + 1].id}" ${lessonUnlocked(c, ls[idx + 1]) ? "" : 'data-action="locked"'}>${icon("arrow")}</a>` : `<a class="icon-btn" aria-label="Voltar ao curso" href="${courseHref(c)}">${icon("check")}</a>`}</div></div><div class="classroom-tabs" role="tablist" aria-label="Informações da aula">${[
       ["description", "Descrição", "file"],
       ["materials", "Materiais", "download"],
-      ["notes", "Anotações", "edit"],
     ]
       .map(
         ([key, label, ic]) =>
-          `<button id="tab-${key}" role="tab" aria-selected="${lessonTab === key}" aria-controls="lesson-tabpanel" tabindex="${lessonTab === key ? "0" : "-1"}" data-action="lesson-tab" data-id="${key}" class="${lessonTab === key ? "selected" : ""}">${icon(ic)}${label}</button>`,
+          `<button id="tab-${key}" role="tab" aria-selected="${activeLessonTab === key}" aria-controls="lesson-tabpanel" tabindex="${activeLessonTab === key ? "0" : "-1"}" data-action="lesson-tab" data-id="${key}" class="${activeLessonTab === key ? "selected" : ""}">${icon(ic)}${label}</button>`,
       )
       .join(
         "",
-      )}</div><section class="classroom-tabpanel" id="lesson-tabpanel" role="tabpanel" aria-labelledby="tab-${lessonTab}">${tabContent(c, l)}</section><div class="classroom-course-credit">${icon("compass")}<span>${esc(b.name)}<small>${esc(c.title)}</small></span></div></section>${outlineOpen ? lessonPanel(c, l) : ""}`;
+      )}</div><section class="classroom-tabpanel" id="lesson-tabpanel" role="tabpanel" aria-labelledby="tab-${activeLessonTab}">${tabContent(c, l)}</section><div class="classroom-course-credit">${icon("compass")}<span>${esc(b.name)}<small>${esc(c.title)}</small></span></div></section>${outlineOpen ? lessonPanel(c, l) : ""}`;
   }
   function saved() {
     const courses = activeCourses();
