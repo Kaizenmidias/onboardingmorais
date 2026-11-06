@@ -1419,8 +1419,9 @@
 .saved-note strong { display: block; margin-bottom: 6px; }
 .saved-note p { margin: 0; white-space: normal; }
 .empty-note { border-style: dashed; opacity: .82; }
-.saved-notes-list { list-style: none; margin: 14px 0 22px; padding: 0; display: grid; gap: 8px; }
-.saved-notes-list li { padding: 12px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); white-space: normal; }
+.saved-notes-list { list-style: none; margin: 14px 0 22px; padding: 14px 16px; display: grid; gap: 7px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-left: 3px solid var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+.saved-notes-list li { padding: 0; white-space: normal; }
+.saved-notes-list li::before { content: "- "; color: var(--accent); font-weight: 700; }
 .classroom-course-credit {
   display: flex;
   align-items: center;
