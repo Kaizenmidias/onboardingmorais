@@ -41,6 +41,24 @@ function json_input(): array {
     $data = json_decode($raw, true);
     return is_array($data) ? $data : $_POST;
 }
+function portal_mail(string $to, string $subject, string $body, string $from = 'gildasiomorais@moraiscontabilidade.com'): bool {
+    $mail = app_config()['mail'] ?? [];
+    if (empty($mail['host']) || empty($mail['user']) || empty($mail['pass'])) {
+        return @mail($to, $subject, $body, "From: {$from}\r\nReply-To: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n", '-f' . $from);
+    }
+    $host = (string)$mail['host']; $port = (int)($mail['port'] ?? 465); $ssl = ($mail['encryption'] ?? 'ssl') === 'ssl';
+    $fp = @stream_socket_client(($ssl ? 'ssl://' : '') . $host . ':' . $port, $errno, $errstr, 15, STREAM_CLIENT_CONNECT);
+    if (!$fp) return false;
+    stream_set_timeout($fp, 15);
+    $read = static function ($fp): string { $out = ''; while (($line = fgets($fp, 515)) !== false) { $out .= $line; if (isset($line[3]) && $line[3] === ' ') break; } return $out; };
+    $write = static function ($fp, string $command, int $code) use ($read): bool { fwrite($fp, $command . "\r\n"); return str_starts_with($read($fp), (string)$code); };
+    if (!str_starts_with($read($fp), '220')) { fclose($fp); return false; }
+    if (!$write($fp, 'EHLO ' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), 250)) { fclose($fp); return false; }
+    if (!$write($fp, 'AUTH LOGIN', 334) || !$write($fp, base64_encode((string)$mail['user']), 334) || !$write($fp, base64_encode((string)$mail['pass']), 235)) { fclose($fp); return false; }
+    if (!$write($fp, 'MAIL FROM:<' . $from . '>', 250) || !$write($fp, 'RCPT TO:<' . $to . '>', 250) || !$write($fp, 'DATA', 354)) { fclose($fp); return false; }
+    $message = 'From: ' . $from . "\r\nReply-To: " . $from . "\r\nTo: " . $to . "\r\nSubject: " . $subject . "\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" . preg_replace('/\r?\n\./', "\r\n..", $body) . "\r\n.";
+    fwrite($fp, $message . "\r\n"); $ok = str_starts_with($read($fp), '250'); fwrite($fp, "QUIT\r\n"); fclose($fp); return $ok;
+}
 function require_method(string $method): void { if ($_SERVER['REQUEST_METHOD'] !== $method) json_response(['error' => 'Método não permitido.'], 405); }
 function csrf_token(): string {
     if (session_status() !== PHP_SESSION_ACTIVE) session_start();
