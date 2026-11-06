@@ -619,11 +619,6 @@ function render() {
   const playingVideo = $("#lesson-video");
   if (playingVideo?.dataset.lessonId)
     state.positions[playingVideo.dataset.lessonId] = playingVideo.currentTime;
-  const noteDraft = $("#lesson-notes");
-  if (noteDraft?.dataset.lessonId) {
-    state.noteDrafts[noteDraft.dataset.lessonId] = noteDraft.value;
-    persist();
-  }
   applyBrand();
   const [root, id, detail] = route();
   const storedUser = (() => { try { return JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); } catch { return null; } })();
