@@ -155,18 +155,19 @@ try {
     }
     if ($action === 'notification.send') {
         $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input();
-        $template=trim((string)($i['template']??'custom')); $subject=trim((string)($i['subject']??'')); $body=trim((string)($i['body']??'')); $clientId=(int)($i['client_id']??0);
+        $template=trim((string)($i['template']??'custom')); $subject=trim((string)($i['subject']??'')); $body=trim((string)($i['body']??'')); $clientId=(int)($i['client_id']??0); $selectedIds=array_values(array_unique(array_filter(array_map('intval',is_array($i['client_ids']??null)?$i['client_ids']:[]),static fn(int $id): bool=>$id>0)));
         if ($template==='new_lesson') {
             $subject='Uma nova aula foi adicionada';
             $body=trim($body) !== '' ? $body : "Uma nova aula foi adicionada à sua área do cliente.\n\nAcesse o portal para conferir os novos conteúdos:\n{portal_url}\n\nAtenciosamente,\nMorais Contabilidade";
         }
         if ($subject==='' || $body==='') json_response(['error'=>'Assunto e mensagem são obrigatórios.'],422);
-        if ($clientId) { $s=db()->prepare("SELECT name,email FROM clients WHERE id=? AND status='active' AND email<>''"); $s->execute([$clientId]); $recipients=$s->fetchAll(); }
+        if ($selectedIds) { $placeholders=implode(',',array_fill(0,count($selectedIds),'?')); $s=db()->prepare("SELECT name,email FROM clients WHERE id IN ($placeholders) AND status='active' AND email<>'' ORDER BY name"); $s->execute($selectedIds); $recipients=$s->fetchAll(); $clientId=0; }
+        elseif ($clientId) { $s=db()->prepare("SELECT name,email FROM clients WHERE id=? AND status='active' AND email<>''"); $s->execute([$clientId]); $recipients=$s->fetchAll(); }
         else { $recipients=db()->query("SELECT name,email FROM clients WHERE status='active' AND email<>'' ORDER BY name")->fetchAll(); }
         if (!$recipients) json_response(['error'=>'Nenhum cliente ativo encontrado.'],422);
         $from='gildasiomorais@moraiscontabilidade.com'; $portalUrl=((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost');
         $sent=0; foreach($recipients as $recipient) { $to=(string)$recipient['email']; $personalBody=str_replace(['{nome}','{portal_url}'],[(string)$recipient['name'],$portalUrl],$body); if (filter_var($to,FILTER_VALIDATE_EMAIL) && portal_mail($to,$subject,$personalBody,$from)) $sent++; }
-        audit($user['id'],'send_notification','notification',$clientId ?: 'all',$sent===count($recipients)?'success':'warning',$sent.' de '.count($recipients).' e-mail(s) enviado(s).'); json_response(['ok'=>true,'sent'=>$sent,'total'=>count($recipients)]);
+        audit($user['id'],'send_notification','notification',$clientId ?: ($selectedIds?implode(',',$selectedIds):'all'),$sent===count($recipients)?'success':'warning',$sent.' de '.count($recipients).' e-mail(s) enviado(s).'); if($sent===0) json_response(['error'=>'Não foi possível enviar a notificação. Verifique a configuração de e-mail da hospedagem.','sent'=>0,'total'=>count($recipients)],502); json_response(['ok'=>true,'sent'=>$sent,'total'=>count($recipients)]);
     }
     if ($action === 'invite.send') {
         $user=admin_user(); require_method('POST'); check_csrf(); $i=json_input(); $clientId=(int)($i['client_id']??0); if(!$clientId)json_response(['error'=>'Cliente inválido.'],422);

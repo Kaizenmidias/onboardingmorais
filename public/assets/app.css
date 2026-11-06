@@ -4139,3 +4139,8 @@ legend {
     min-width: 36px;
   }
 }
+.recipient-picker { margin: 0 0 18px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 8px; }
+.recipient-picker legend { padding: 0 4px; font-weight: 700; }
+.recipient-option { display: flex; align-items: center; gap: 8px; margin: 0; }
+.recipient-option input { width: auto; margin: 0; }
+.recipient-picker small { margin-top: 2px; }
