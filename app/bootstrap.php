@@ -78,7 +78,13 @@ function portal_mail(string $to, string $subject, string $body, string $from = '
         if ($ok && $smtpEncryption === 'tls') { $ok = $write($fp, 'STARTTLS', 220) && @stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT) && $write($fp, 'EHLO ' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), 250); }
         $ok = $ok && $write($fp, 'AUTH LOGIN', 334) && $write($fp, base64_encode((string)$mail['user']), 334) && $write($fp, base64_encode((string)$mail['pass']), 235);
         $ok = $ok && $write($fp, 'MAIL FROM:<' . $from . '>', 250) && $write($fp, 'RCPT TO:<' . $to . '>', 250) && $write($fp, 'DATA', 354);
-        if ($ok) { $message = 'From: ' . $from . "\r\nReply-To: " . $from . "\r\nTo: " . $to . "\r\nSubject: " . $subject . "\r\n" . $headers . "\r\n" . preg_replace('/\r?\n\./', "\r\n..", $body) . "\r\n."; fwrite($fp, $message . "\r\n"); $ok = str_starts_with($read($fp), '250'); }
+        if ($ok) {
+            // Keep one canonical set of headers. Duplicating From/Reply-To
+            // here can make some shared-host SMTP relays reject normal
+            // notifications even though the diagnostic message succeeds.
+            $message = 'From: ' . $from . "\r\nReply-To: " . $from . "\r\nTo: " . $to . "\r\nSubject: " . $subject . "\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" . preg_replace('/\r?\n\./', "\r\n..", $body) . "\r\n.";
+            fwrite($fp, $message . "\r\n"); $ok = str_starts_with($read($fp), '250');
+        }
         @fwrite($fp, "QUIT\r\n"); fclose($fp); if ($ok) return true;
     }
     return @mail($to, $subject, $body, $headers, '-f' . $from);
