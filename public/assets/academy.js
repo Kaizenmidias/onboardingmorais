@@ -62,7 +62,7 @@ export function createAcademy(ctx) {
       orientation === "landscape"
         ? c.landscapeImage || c.coverImage
         : c.coverImage;
-    const custom = /^data:image\/(png|jpeg|webp);base64,/.test(chosen || "")
+    const custom = /^(?:data:image\/(?:png|jpeg|webp);base64,)/.test(chosen || "") || String(chosen || "").includes("media.php?id=")
       ? chosen
       : "";
     const photo = c.id === "primeiros-passos";
