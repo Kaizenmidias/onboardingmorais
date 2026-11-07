@@ -1258,10 +1258,18 @@ function bindVideo() {
   const stage = v.closest(".academy-video-stage"), overlay = stage?.querySelector(".academy-video-overlay-play");
   const syncOverlay = () => overlay?.classList.toggle("is-hidden", !v.paused && !v.ended);
   overlay?.addEventListener("click", () => {
+    // Mobile browsers only expose native pause/volume/fullscreen controls
+    // after controls are enabled. Reveal them when playback starts.
+    v.controls = true;
+    v.setAttribute("controls", "");
     if (v.paused || v.ended) void v.play().catch(() => toast("Não foi possível reproduzir este vídeo."));
     else v.pause();
   });
-  v.addEventListener("play", syncOverlay);
+  v.addEventListener("play", () => {
+    v.controls = true;
+    v.setAttribute("controls", "");
+    syncOverlay();
+  });
   v.addEventListener("pause", syncOverlay);
   v.addEventListener("ended", syncOverlay);
   syncOverlay();
