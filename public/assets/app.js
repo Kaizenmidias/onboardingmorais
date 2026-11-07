@@ -1256,16 +1256,19 @@ function bindVideo() {
     id = route()[1];
   if (!v) return;
   const stage = v.closest(".academy-video-stage"), overlay = stage?.querySelector(".academy-video-overlay-play");
-  const syncOverlay = () => overlay?.classList.toggle("is-hidden", !v.paused && !v.ended);
+  let controlsRevealed = false;
+  const syncOverlay = () => overlay?.classList.toggle("is-hidden", controlsRevealed || (!v.paused && !v.ended));
   overlay?.addEventListener("click", () => {
     // Mobile browsers only expose native pause/volume/fullscreen controls
     // after controls are enabled. Reveal them when playback starts.
+    controlsRevealed = true;
     v.controls = true;
     v.setAttribute("controls", "");
     if (v.paused || v.ended) void v.play().catch(() => toast("Não foi possível reproduzir este vídeo."));
     else v.pause();
   });
   v.addEventListener("play", () => {
+    controlsRevealed = true;
     v.controls = true;
     v.setAttribute("controls", "");
     syncOverlay();
