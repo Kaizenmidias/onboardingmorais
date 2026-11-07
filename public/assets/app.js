@@ -1053,7 +1053,7 @@ function bindForms() {
         $("#auth-message").textContent = "Login ou senha inválidos.";
       }
     } else if (kind === "recuperar") {
-      const result=await apiRequest("password.reset.request",{method:"POST",body:JSON.stringify({email:fd.get("email")})}); form.reset(); $("#auth-message").textContent=result?.ok?"Se o e-mail estiver cadastrado, enviaremos as instruções.":"Não foi possível solicitar a recuperação.";
+      const result=await apiRequest("password.reset.request",{method:"POST",body:JSON.stringify({email:fd.get("email")})}); form.reset(); $("#auth-message").textContent=result?.ok?"Se o e-mail estiver cadastrado, enviaremos as instruções.":(result?.error||"Não foi possível solicitar a recuperação.");
     } else if (kind === "redefinir") {
       const token=new URLSearchParams(location.hash.split("?")[1]||"").get("token")||""; const result=await apiRequest("password.reset.complete",{method:"POST",body:JSON.stringify({token,password:fd.get("password")})}); if(result?.ok){form.reset(); location.hash="/login"; toast("Senha alterada com sucesso.");} else $("#auth-message").textContent=result?.error||"Link inválido ou expirado.";
     } else {
